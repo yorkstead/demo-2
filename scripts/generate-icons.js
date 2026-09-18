@@ -1,0 +1,179 @@
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+
+const publicDir = path.join(__dirname, '..', 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+// Standard full icon SVG (512x512)
+const svgFull = `
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2238" />
+      <stop offset="50%" stop-color="#0b192c" />
+      <stop offset="100%" stop-color="#060d17" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#b4824f" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffe082" />
+      <stop offset="100%" stop-color="#d4af37" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#d4af37" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Squircle with Gold Border -->
+  <rect x="16" y="16" width="480" height="480" rx="100" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="12" />
+  
+  <!-- Subtle inner grid pattern -->
+  <path d="M 80 160 H 432 M 80 256 H 432 M 80 352 H 432" stroke="#233f63" stroke-width="2" stroke-dasharray="6 6" opacity="0.4" />
+  <path d="M 160 80 V 432 M 256 80 V 432 M 352 80 V 432" stroke="#233f63" stroke-width="2" stroke-dasharray="6 6" opacity="0.4" />
+
+  <!-- Logistics Warehouse / Forklift Cross-Dock Emblem -->
+  <g filter="url(#glow)">
+    <!-- Base Pallet Platform -->
+    <rect x="120" y="340" width="272" height="28" rx="6" fill="url(#goldGrad)" />
+    <!-- Pallet feet -->
+    <rect x="136" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+    <rect x="234" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+    <rect x="332" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+
+    <!-- High-Velocity Cargo Stacks / Re-work Shift Icon -->
+    <!-- Box 1 (Left Base) -->
+    <rect x="136" y="240" width="108" height="88" rx="8" fill="#162b45" stroke="url(#goldAccent)" stroke-width="6" />
+    <path d="M 190 240 V 328 M 136 284 H 244" stroke="#233f63" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Box 2 (Right Base) -->
+    <rect x="268" y="240" width="108" height="88" rx="8" fill="#1c375b" stroke="url(#goldAccent)" stroke-width="6" />
+    <path d="M 322 240 V 328 M 268 284 H 376" stroke="#233f63" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Top Shifted Cargo Box (Corrected Alignment & Gold Glow) -->
+    <rect x="202" y="132" width="108" height="92" rx="8" fill="url(#goldGrad)" stroke="#fff" stroke-width="4" />
+    <path d="M 256 132 V 224 M 202 178 H 310" stroke="#8c6a2e" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Dynamic Flow Arrows (Cross-Dock Rework Velocity) -->
+    <path d="M 104 180 L 152 180 M 152 180 L 138 166 M 152 180 L 138 194" stroke="url(#goldAccent)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 408 180 L 360 180 M 360 180 L 374 166 M 360 180 L 374 194" stroke="url(#goldAccent)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- Brand Typography "RF" / "DEW" Indicator at bottom -->
+  <text x="256" y="435" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="34" letter-spacing="4" fill="#f8fafc">
+    REWORK<tspan fill="#f59e0b">FLOW</tspan>
+  </text>
+</svg>
+`;
+
+// Maskable Icon SVG (512x512 with safe-zone margin where outer 20% can be safely cropped)
+const svgMaskable = `
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2238" />
+      <stop offset="50%" stop-color="#0b192c" />
+      <stop offset="100%" stop-color="#060d17" />
+    </linearGradient>
+    <linearGradient id="goldGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#b4824f" />
+    </linearGradient>
+    <linearGradient id="goldAccentMask" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffe082" />
+      <stop offset="100%" stop-color="#d4af37" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full background bleed for maskable cropping -->
+  <rect width="512" height="512" fill="url(#bgGradMask)" />
+  <circle cx="256" cy="256" r="230" stroke="url(#goldGradMask)" stroke-width="8" opacity="0.3" />
+
+  <!-- Inner Content scaled into safe-zone (radius ~ 180px) -->
+  <g transform="translate(51, 51) scale(0.8)">
+    <!-- Base Pallet Platform -->
+    <rect x="120" y="340" width="272" height="28" rx="6" fill="url(#goldGradMask)" />
+    <!-- Pallet feet -->
+    <rect x="136" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+    <rect x="234" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+    <rect x="332" y="368" width="44" height="20" rx="4" fill="#8c6a2e" />
+
+    <!-- Cargo Stacks -->
+    <rect x="136" y="240" width="108" height="88" rx="8" fill="#162b45" stroke="url(#goldAccentMask)" stroke-width="6" />
+    <path d="M 190 240 V 328 M 136 284 H 244" stroke="#233f63" stroke-width="4" stroke-linecap="round" />
+
+    <rect x="268" y="240" width="108" height="88" rx="8" fill="#1c375b" stroke="url(#goldAccentMask)" stroke-width="6" />
+    <path d="M 322 240 V 328 M 268 284 H 376" stroke="#233f63" stroke-width="4" stroke-linecap="round" />
+
+    <!-- Shifted Box Top -->
+    <rect x="202" y="132" width="108" height="92" rx="8" fill="url(#goldGradMask)" stroke="#fff" stroke-width="4" />
+    <path d="M 256 132 V 224 M 202 178 H 310" stroke="#8c6a2e" stroke-width="4" stroke-linecap="round" />
+
+    <text x="256" y="435" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="36" letter-spacing="4" fill="#f8fafc">
+      REWORK<tspan fill="#f59e0b">FLOW</tspan>
+    </text>
+  </g>
+</svg>
+`;
+
+async function generate() {
+  console.log('Generating PWA icons with sharp...');
+
+  // Save SVG source
+  fs.writeFileSync(path.join(publicDir, 'icon.svg'), svgFull.trim());
+
+  // 1. icon-512.png
+  await sharp(Buffer.from(svgFull))
+    .resize(512, 512)
+    .png({ quality: 100, compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'icon-512.png'));
+  console.log('✓ Created public/icon-512.png');
+
+  // 2. icon-192.png
+  await sharp(Buffer.from(svgFull))
+    .resize(192, 192)
+    .png({ quality: 100, compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'icon-192.png'));
+  console.log('✓ Created public/icon-192.png');
+
+  // 3. maskable-icon-512.png & maskable-icon-192.png
+  await sharp(Buffer.from(svgMaskable))
+    .resize(512, 512)
+    .png({ quality: 100, compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'maskable-icon-512.png'));
+  console.log('✓ Created public/maskable-icon-512.png');
+
+  await sharp(Buffer.from(svgMaskable))
+    .resize(192, 192)
+    .png({ quality: 100, compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'maskable-icon-192.png'));
+  console.log('✓ Created public/maskable-icon-192.png');
+
+
+  // 4. apple-touch-icon.png (180x180)
+  await sharp(Buffer.from(svgFull))
+    .resize(180, 180)
+    .png({ quality: 100, compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'apple-touch-icon.png'));
+  console.log('✓ Created public/apple-touch-icon.png');
+
+  // 5. favicon.ico / favicon 32x32
+  await sharp(Buffer.from(svgFull))
+    .resize(32, 32)
+    .png()
+    .toFile(path.join(publicDir, 'favicon.ico'));
+  console.log('✓ Created public/favicon.ico');
+
+  console.log('All PWA icons generated successfully!');
+}
+
+generate().catch((err) => {
+  console.error('Error generating icons:', err);
+  process.exit(1);
+});

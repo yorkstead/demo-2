@@ -1,0 +1,12 @@
+{
+  "name": "reworkflow-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive operational prototype of ReworkFlow for Denver Express Warehousing & Cross-Docking",
+  "scripts": {
+    "dev": "bun run server.ts",
+    "start": "bun run server.ts"
+  },
+  "keywords": ["logistics", "freight-rework", "yorkstead-systems"],
+  "author": "Yorkstead Systems"
+}

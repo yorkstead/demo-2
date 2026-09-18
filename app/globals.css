@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --brand-navy: #0b192c;
+    --brand-dark: #060d17;
+    --brand-gold: #d4af37;
+    --brand-surface: #0f2238;
+    --brand-card: #162b45;
+    --brand-border: #233f63;
+  }
+}
+
+body {
+  background-color: #060d17;
+  color: #f1f5f9;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Always hide scrollbars globally across all browsers while maintaining scrolling functionality */
+html,
+body,
+* {
+  scrollbar-width: none !important; /* Firefox, Chrome 121+, Safari 18+ */
+  -ms-overflow-style: none !important; /* IE and older Edge */
+}
+
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important; /* WebKit (Chrome, Safari, Edge) */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #certificate-print-area, #certificate-print-area * {
+    visibility: visible;
+  }
+  #certificate-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

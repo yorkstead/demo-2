@@ -1,0 +1,44 @@
+{
+  "name": "rework-flow",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "remotion:preview": "remotion studio remotion/index.ts --port=3333",
+    "remotion:render": "remotion render remotion/index.ts CommercialVideo out/commercial.mp4",
+    "test": "bun test tests",
+    "test:postgres": "bun tests/postgres-integration.ts",
+    "typecheck": "tsc --noEmit --incremental false"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@remotion/cli": "4.0.521",
+    "@remotion/player": "4.0.521",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.0",
+    "pg": "^8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.521",
+    "tailwind-merge": "^3.6.0",
+    "vercel": "^59.11.7",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "eslint": "^9",
+    "eslint-config-next": "^16.3.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

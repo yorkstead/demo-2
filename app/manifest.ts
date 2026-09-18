@@ -1,0 +1,72 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    id: "/",
+    name: "ReworkFlow • Denver Express Warehousing",
+    short_name: "ReworkFlow",
+    description: "High-Velocity Cargo Rework & Cross-Dock Evidence Engine",
+    start_url: "/",
+    scope: "/",
+    display: "standalone",
+    orientation: "any",
+    background_color: "#060d17",
+    theme_color: "#0b192c",
+    prefer_related_applications: false,
+    categories: ["business", "productivity", "logistics"],
+    icons: [
+      {
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/maskable-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/maskable-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Forklift Dock Mode",
+        short_name: "Dock",
+        description: "Open Forklift Touch Terminal & Rework Logger",
+        url: "/dock",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Office Dispatch Board",
+        short_name: "Office",
+        description: "Open Office Billing & Bay Dispatch Board",
+        url: "/office",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Reserve Dock Bay",
+        short_name: "Reserve",
+        description: "Driver Dock Bay Reservation & Instant Quote",
+        url: "/reserve",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+    ],
+  };
+}

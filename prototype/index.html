@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ReworkFlow • Denver Express Warehousing & Cross-Docking</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0b192c',
+              dark: '#060d17',
+              gold: '#d4af37',
+              goldHover: '#b89628',
+              surface: '#0f2238',
+              card: '#162b45',
+              border: '#233f63',
+              accent: '#f59e0b',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom styles for signature canvas and print layout */
+    #sig-canvas {
+      touch-action: none;
+      cursor: crosshair;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #certificate-print-area, #certificate-print-area * {
+        visibility: visible;
+      }
+      #certificate-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    /* Touch target utilities for forklift/tablet use */
+    .touch-btn {
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .touch-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body class="bg-brand-dark text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-gold selection:text-brand-navy">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-brand-navy border-b border-brand-border sticky top-0 z-40 px-4 py-3 shadow-md">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-brand-gold text-brand-navy flex items-center justify-center font-black text-xl tracking-wider shadow-sm">
+          DE
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base md:text-lg leading-tight text-white tracking-tight">Denver Express <span class="text-brand-gold text-xs uppercase px-1.5 py-0.5 rounded bg-brand-gold/15 border border-brand-gold/30 ml-1">Dock Cockpit</span></h1>
+          </div>
+          <p class="text-xs text-slate-400">6030 Washington St, Ste 130 • I-25 & I-70 Hub</p>
+        </div>
+      </div>
+
+      <!-- Live indicators & View Switcher -->
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Terminal Connected
+        </div>
+
+        <div class="bg-brand-card p-0.5 rounded-lg border border-brand-border flex items-center">
+          <button id="btn-mode-dock" onclick="switchView('dock')" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-brand-gold text-brand-navy transition flex items-center gap-1.5 touch-btn">
+            <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+            <span>Dock Intake</span>
+          </button>
+          <button id="btn-mode-office" onclick="switchView('office')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5 touch-btn">
+            <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+            <span>Office Board</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
+
+    <!-- =============================================================== -->
+    <!-- VIEW A: DOCK INTAKE & REWORK WORKFLOW (TABLET / MOBILE VIEW)   -->
+    <!-- =============================================================== -->
+    <div id="view-dock" class="space-y-6">
+
+      <!-- Step Progress Indicator -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-3 md:p-4 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold">
+          <div id="step-pill-1" class="flex items-center gap-2 text-brand-gold">
+            <span class="w-6 h-6 rounded-full bg-brand-gold text-brand-navy flex items-center justify-center font-bold">1</span>
+            <span class="hidden sm:inline">Intake & Bay</span>
+          </div>
+          <div class="h-0.5 flex-1 mx-3 bg-brand-border" id="step-line-1"></div>
+          <div id="step-pill-2" class="flex items-center gap-2 text-slate-400">
+            <span class="w-6 h-6 rounded-full bg-brand-border text-slate-300 flex items-center justify-center font-bold">2</span>
+            <span class="hidden sm:inline">Damage Photos</span>
+          </div>
+          <div class="h-0.5 flex-1 mx-3 bg-brand-border" id="step-line-2"></div>
+          <div id="step-pill-3" class="flex items-center gap-2 text-slate-400">
+            <span class="w-6 h-6 rounded-full bg-brand-border text-slate-300 flex items-center justify-center font-bold">3</span>
+            <span class="hidden sm:inline">Supplies & Time</span>
+          </div>
+          <div class="h-0.5 flex-1 mx-3 bg-brand-border" id="step-line-3"></div>
+          <div id="step-pill-4" class="flex items-center gap-2 text-slate-400">
+            <span class="w-6 h-6 rounded-full bg-brand-border text-slate-300 flex items-center justify-center font-bold">4</span>
+            <span class="hidden sm:inline">Proof & Sign</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================== STEP 1: INTAKE ======================== -->
+      <div id="step-content-1" class="bg-brand-surface border border-brand-border rounded-2xl p-5 md:p-7 shadow-xl space-y-6">
+        <div class="border-b border-brand-border/80 pb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="package-open" class="w-6 h-6 text-brand-gold"></i>
+              Step 1: Rapid Inbound Intake
+            </h2>
+            <p class="text-sm text-slate-400 mt-0.5">Log the incoming trailer and select required rework recovery</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-brand-navy border border-brand-border text-brand-gold font-mono">Job #RW-2026-0842</span>
+        </div>
+
+        <!-- Service Category Selector -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Service Type</label>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button type="button" onclick="selectServiceType('Shifted Pallets')" id="srv-btn-shifted" class="service-pill border-2 border-brand-gold bg-brand-gold/10 text-white rounded-xl p-3.5 text-left transition touch-btn">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-brand-gold mb-1.5"></i>
+              <div class="font-bold text-sm">Shifted Pallets</div>
+              <div class="text-xs text-slate-400 mt-0.5">Mountain shift / leaning</div>
+            </button>
+            <button type="button" onclick="selectServiceType('Axle Rebalance')" id="srv-btn-axle" class="service-pill border border-brand-border bg-brand-card hover:bg-brand-card/80 text-slate-300 rounded-xl p-3.5 text-left transition touch-btn">
+              <i data-lucide="scale" class="w-5 h-5 text-blue-400 mb-1.5"></i>
+              <div class="font-bold text-sm">Axle Rebalance</div>
+              <div class="text-xs text-slate-400 mt-0.5">Scale overweight fix</div>
+            </button>
+            <button type="button" onclick="selectServiceType('Pallet Swap')" id="srv-btn-swap" class="service-pill border border-brand-border bg-brand-card hover:bg-brand-card/80 text-slate-300 rounded-xl p-3.5 text-left transition touch-btn">
+              <i data-lucide="layers" class="w-5 h-5 text-emerald-400 mb-1.5"></i>
+              <div class="font-bold text-sm">Pallet Swap</div>
+              <div class="text-xs text-slate-400 mt-0.5">Crushed / broken boards</div>
+            </button>
+            <button type="button" onclick="selectServiceType('Floor Transload')" id="srv-btn-floor" class="service-pill border border-brand-border bg-brand-card hover:bg-brand-card/80 text-slate-300 rounded-xl p-3.5 text-left transition touch-btn">
+              <i data-lucide="container" class="w-5 h-5 text-purple-400 mb-1.5"></i>
+              <div class="font-bold text-sm">Floor Transload</div>
+              <div class="text-xs text-slate-400 mt-0.5">Container breakdown</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Trailer, Carrier, Bay Form -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Trailer Number *</label>
+            <div class="relative">
+              <input type="text" id="inp-trailer" value="SWFT-55219" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white font-mono text-base font-bold focus:outline-none focus:border-brand-gold" placeholder="e.g. SWFT-55219" />
+              <button type="button" onclick="setSampleTrailer()" class="absolute right-2 top-2.5 text-xs text-brand-gold hover:underline bg-brand-navy px-1.5 py-0.5 rounded border border-brand-border">Sample</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Carrier Name *</label>
+            <input type="text" id="inp-carrier" value="Swift Transportation" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white text-base focus:outline-none focus:border-brand-gold" placeholder="e.g. Swift, Knight, Landstar" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Assigned Dock Bay *</label>
+            <select id="inp-bay" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white text-base focus:outline-none focus:border-brand-gold">
+              <option value="Bay 1">Bay 1 (Available)</option>
+              <option value="Bay 2" selected>Bay 2 (Active Rework)</option>
+              <option value="Bay 3">Bay 3 (Available)</option>
+              <option value="Bay 4">Bay 4 (Cross-Dock Staged)</option>
+              <option value="Bay 5">Bay 5 (Available)</option>
+              <option value="Bay 6">Bay 6 (Container Ramp)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Driver Name</label>
+            <input type="text" id="inp-driver" value="Marcus Vance" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white text-base focus:outline-none focus:border-brand-gold" placeholder="Driver full name" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Driver Mobile (for SMS receipt)</label>
+            <input type="tel" id="inp-phone" value="(720) 555-0194" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white font-mono text-base focus:outline-none focus:border-brand-gold" placeholder="(xxx) xxx-xxxx" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Estimated Shifted Pallets</label>
+            <input type="number" id="inp-pallets-est" value="8" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3.5 py-3 text-white font-mono text-base focus:outline-none focus:border-brand-gold" />
+          </div>
+        </div>
+
+        <!-- Next Button -->
+        <div class="pt-4 flex justify-end">
+          <button type="button" onclick="goToStep(2)" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-brand-gold hover:bg-brand-goldHover text-brand-navy font-black text-base transition shadow-lg shadow-brand-gold/20 flex items-center justify-center gap-2 touch-btn">
+            <span>Continue to Damage Photos</span>
+            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== STEP 2: BEFORE PHOTOS ==================== -->
+      <div id="step-content-2" class="hidden bg-brand-surface border border-brand-border rounded-2xl p-5 md:p-7 shadow-xl space-y-6">
+        <div class="border-b border-brand-border/80 pb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="camera" class="w-6 h-6 text-brand-gold"></i>
+              Step 2: "Before" Damage Inspection Photos
+            </h2>
+            <p class="text-sm text-slate-400 mt-0.5">Capture indisputable photographic proof of inbound cargo condition</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            GPS & Timestamp Verified
+          </span>
+        </div>
+
+        <!-- Photo Tiles Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Photo Slot 1: Wide Trailer Cargo Shift -->
+          <div class="bg-brand-dark border-2 border-dashed border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div id="before-img-1-preview" class="w-full h-48 rounded-lg overflow-hidden bg-brand-navy flex flex-col items-center justify-center relative">
+              <img id="before-img-1" src="" class="w-full h-full object-cover hidden" alt="Shifted cargo before" />
+              <div id="before-placeholder-1" class="flex flex-col items-center p-4">
+                <i data-lucide="camera" class="w-10 h-10 text-brand-gold mb-2"></i>
+                <span class="font-bold text-sm text-white">Shot 1: Inbound Shift Overview</span>
+                <span class="text-xs text-slate-400 mt-1">Wide view of leaning pallets in trailer</span>
+                <button type="button" onclick="loadSampleBeforePhoto(1)" class="mt-3 text-xs bg-brand-gold/20 hover:bg-brand-gold/30 text-brand-gold border border-brand-gold/40 px-3 py-1.5 rounded-md font-semibold transition touch-btn">
+                  Load Realistic Sample Photo
+                </button>
+              </div>
+            </div>
+            <div class="w-full mt-2.5 flex items-center justify-between text-xs text-slate-400">
+              <span id="before-tag-1" class="font-mono">Not captured</span>
+              <label class="cursor-pointer text-brand-gold hover:underline font-semibold">
+                Upload custom file
+                <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(event, 'before-img-1', 'before-placeholder-1', 'before-tag-1')" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Photo Slot 2: Close-up defect -->
+          <div class="bg-brand-dark border-2 border-dashed border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div id="before-img-2-preview" class="w-full h-48 rounded-lg overflow-hidden bg-brand-navy flex flex-col items-center justify-center relative">
+              <img id="before-img-2" src="" class="w-full h-full object-cover hidden" alt="Pallet defect detail" />
+              <div id="before-placeholder-2" class="flex flex-col items-center p-4">
+                <i data-lucide="scan-barcode" class="w-10 h-10 text-brand-gold mb-2"></i>
+                <span class="font-bold text-sm text-white">Shot 2: Close-up / Broken Baseboards</span>
+                <span class="text-xs text-slate-400 mt-1">Proof of crushed boxes or broken wood</span>
+                <button type="button" onclick="loadSampleBeforePhoto(2)" class="mt-3 text-xs bg-brand-gold/20 hover:bg-brand-gold/30 text-brand-gold border border-brand-gold/40 px-3 py-1.5 rounded-md font-semibold transition touch-btn">
+                  Load Realistic Sample Photo
+                </button>
+              </div>
+            </div>
+            <div class="w-full mt-2.5 flex items-center justify-between text-xs text-slate-400">
+              <span id="before-tag-2" class="font-mono">Not captured</span>
+              <label class="cursor-pointer text-brand-gold hover:underline font-semibold">
+                Upload custom file
+                <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(event, 'before-img-2', 'before-placeholder-2', 'before-tag-2')" />
+              </label>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Defect Notes Chips -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Quick Defect Tags (included in report)</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleDefectTag(this)" class="tag-btn px-3 py-1.5 rounded-lg border border-brand-gold bg-brand-gold/20 text-brand-gold text-xs font-semibold">
+              ✓ Mountain Shift (I-70 / Tunnel)
+            </button>
+            <button type="button" onclick="toggleDefectTag(this)" class="tag-btn px-3 py-1.5 rounded-lg border border-brand-gold bg-brand-gold/20 text-brand-gold text-xs font-semibold">
+              ✓ Pallet Collapsed on Wall
+            </button>
+            <button type="button" onclick="toggleDefectTag(this)" class="tag-btn px-3 py-1.5 rounded-lg border border-brand-border bg-brand-dark text-slate-400 text-xs font-semibold">
+              + Receiver Rejection Stamped
+            </button>
+            <button type="button" onclick="toggleDefectTag(this)" class="tag-btn px-3 py-1.5 rounded-lg border border-brand-border bg-brand-dark text-slate-400 text-xs font-semibold">
+              + Broken Wooden Runners
+            </button>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="pt-4 flex items-center justify-between">
+          <button type="button" onclick="goToStep(1)" class="px-5 py-3.5 rounded-xl border border-brand-border text-slate-300 hover:bg-brand-card text-sm font-semibold transition touch-btn">
+            ← Back to Intake
+          </button>
+          <button type="button" onclick="goToStep(3)" class="px-8 py-4 rounded-xl bg-brand-gold hover:bg-brand-goldHover text-brand-navy font-black text-base transition shadow-lg shadow-brand-gold/20 flex items-center gap-2 touch-btn">
+            <span>Log Supplies & Work →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== STEP 3: WORK & SUPPLIES ==================== -->
+      <div id="step-content-3" class="hidden bg-brand-surface border border-brand-border rounded-2xl p-5 md:p-7 shadow-xl space-y-6">
+        <div class="border-b border-brand-border/80 pb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="calculator" class="w-6 h-6 text-brand-gold"></i>
+              Step 3: Materials & Labor Quick-Tally
+            </h2>
+            <p class="text-sm text-slate-400 mt-0.5">Tap to log supplies used and forklift hours. Live rates auto-calculated.</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block">Live Invoice Total</span>
+            <span id="live-total-badge" class="text-2xl font-black text-brand-gold font-mono">$482.50</span>
+          </div>
+        </div>
+
+        <!-- Interactive Counters List -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <!-- New GMA Pallets -->
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white text-base">New GMA Grade-A Pallets</div>
+              <div class="text-xs text-slate-400">$18.50 per wood pallet</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCounter('pallets', -1)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">-</button>
+              <span id="val-pallets" class="w-8 text-center font-mono font-bold text-lg text-white">4</span>
+              <button type="button" onclick="changeCounter('pallets', 1)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">+</button>
+            </div>
+          </div>
+
+          <!-- Stretch Wrap Rolls -->
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white text-base">Heavy Stretch Wrap Rolls (80ga)</div>
+              <div class="text-xs text-slate-400">$25.00 per roll</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCounter('wrap', -1)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">-</button>
+              <span id="val-wrap" class="w-8 text-center font-mono font-bold text-lg text-white">2</span>
+              <button type="button" onclick="changeCounter('wrap', 1)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">+</button>
+            </div>
+          </div>
+
+          <!-- Corner Boards -->
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white text-base">Corner Boards (48" edge)</div>
+              <div class="text-xs text-slate-400">$3.00 each</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCounter('corners', -2)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">-</button>
+              <span id="val-corners" class="w-8 text-center font-mono font-bold text-lg text-white">8</span>
+              <button type="button" onclick="changeCounter('corners', 2)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">+</button>
+            </div>
+          </div>
+
+          <!-- Forklift & Crew Labor -->
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white text-base">Forklift & Crew Labor Hours</div>
+              <div class="text-xs text-slate-400">$125.00 per hour (0.25h steps)</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="changeCounter('labor', -0.25)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">-</button>
+              <span id="val-labor" class="w-12 text-center font-mono font-bold text-lg text-white">1.25h</span>
+              <button type="button" onclick="changeCounter('labor', 0.25)" class="w-10 h-10 rounded-lg bg-brand-card hover:bg-brand-border text-white text-xl font-bold flex items-center justify-center touch-btn">+</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Additional Toggles -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-white text-sm">Certified Scale Weight Re-Check</div>
+              <div class="text-xs text-slate-400">Scale ticket printout for Colorado Port of Entry</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="chk-scale" class="sr-only peer" onchange="calculateTotal()" checked />
+              <div class="w-11 h-6 bg-brand-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-gold"></div>
+            </label>
+          </div>
+
+          <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-white text-sm">Broken Wood / Debris Disposal Fee</div>
+              <div class="text-xs text-slate-400">Dumpster & pallet breakdown disposal</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="chk-debris" class="sr-only peer" onchange="calculateTotal()" checked />
+              <div class="w-11 h-6 bg-brand-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-gold"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="pt-4 flex items-center justify-between">
+          <button type="button" onclick="goToStep(2)" class="px-5 py-3.5 rounded-xl border border-brand-border text-slate-300 hover:bg-brand-card text-sm font-semibold transition touch-btn">
+            ← Back to Photos
+          </button>
+          <button type="button" onclick="goToStep(4)" class="px-8 py-4 rounded-xl bg-brand-gold hover:bg-brand-goldHover text-brand-navy font-black text-base transition shadow-lg shadow-brand-gold/20 flex items-center gap-2 touch-btn">
+            <span>Proceed to Driver Sign-Off →</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== STEP 4: PROOF & SIGNATURE ==================== -->
+      <div id="step-content-4" class="hidden bg-brand-surface border border-brand-border rounded-2xl p-5 md:p-7 shadow-xl space-y-6">
+        <div class="border-b border-brand-border/80 pb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-6 h-6 text-emerald-400"></i>
+              Step 4: "After" Proof & Driver Sign-Off
+            </h2>
+            <p class="text-sm text-slate-400 mt-0.5">Capture completed restack proof and collect driver glass signature</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-medium font-mono">Total: <span id="sign-step-total">$482.50</span></span>
+        </div>
+
+        <!-- After Photos -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">After Rework Proof Photo *</label>
+          <div class="bg-brand-dark border-2 border-dashed border-brand-border rounded-xl p-4 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <div id="after-img-preview" class="w-full h-44 rounded-lg overflow-hidden bg-brand-navy flex flex-col items-center justify-center relative">
+              <img id="after-img" src="" class="w-full h-full object-cover hidden" alt="Restacked pallets after rework" />
+              <div id="after-placeholder" class="flex flex-col items-center p-4">
+                <i data-lucide="check-check" class="w-10 h-10 text-emerald-400 mb-2"></i>
+                <span class="font-bold text-sm text-white">Shot: Restacked, Wrapped & Road-Ready</span>
+                <span class="text-xs text-slate-400 mt-1">Photo of cleanly restacked pallets staged for departure</span>
+                <button type="button" onclick="loadSampleAfterPhoto()" class="mt-3 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-md font-semibold transition touch-btn">
+                  Load Realistic "After" Photo
+                </button>
+              </div>
+            </div>
+            <div class="w-full mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span id="after-tag" class="font-mono">Not captured</span>
+              <label class="cursor-pointer text-brand-gold hover:underline font-semibold">
+                Upload custom file
+                <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(event, 'after-img', 'after-placeholder', 'after-tag')" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Digital Signature Canvas on Glass -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-brand-gold"></i>
+              Driver Signature on Glass *
+            </label>
+            <button type="button" onclick="clearSignature()" class="text-xs text-rose-400 hover:text-rose-300 underline touch-btn">
+              Clear Signature
+            </button>
+          </div>
+
+          <div class="bg-brand-dark border-2 border-brand-border rounded-xl p-1 relative">
+            <canvas id="sig-canvas" width="600" height="150" class="w-full bg-slate-900 rounded-lg"></canvas>
+            <div id="sig-placeholder-text" class="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+              Sign here with finger or stylus (Driver acknowledgment)
+            </div>
+          </div>
+
+          <!-- Legal Disclaimer -->
+          <div class="mt-2 text-[11px] text-slate-400 bg-brand-navy p-3 rounded-lg border border-brand-border/60 leading-relaxed">
+            <span class="text-slate-300 font-semibold">Driver Acceptance Statement:</span> "By signing below, driver acknowledges receipt and full completion of emergency cargo rework, restacking, and wrap services for trailer SWFT-55219. Freight has been inspected and released in road-ready, secure condition. All labor and pallet counts confirmed accurate."
+          </div>
+        </div>
+
+        <!-- Navigation & Final CTA -->
+        <div class="pt-4 flex items-center justify-between">
+          <button type="button" onclick="goToStep(3)" class="px-5 py-3.5 rounded-xl border border-brand-border text-slate-300 hover:bg-brand-card text-sm font-semibold transition touch-btn">
+            ← Back to Supplies
+          </button>
+          <button type="button" onclick="completeJobAndShowCertificate()" class="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-navy font-black text-base transition shadow-lg shadow-emerald-500/20 flex items-center gap-2 touch-btn">
+            <i data-lucide="send" class="w-5 h-5"></i>
+            <span>COMPLETE JOB & ISSUE CERTIFICATE</span>
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /#view-dock -->
+
+    <!-- =============================================================== -->
+    <!-- VIEW B: OFFICE BILLING & MANAGEMENT BOARD                      -->
+    <!-- =============================================================== -->
+    <div id="view-office" class="hidden space-y-6">
+
+      <!-- Metrics Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-brand-surface border border-brand-border rounded-xl p-4">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Today's Rework Total</span>
+          <span class="text-2xl font-black text-brand-gold mt-1 block font-mono">$2,415.00</span>
+          <span class="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 5 trailers serviced today
+          </span>
+        </div>
+
+        <div class="bg-brand-surface border border-brand-border rounded-xl p-4">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Active Bays Occupied</span>
+          <span class="text-2xl font-black text-white mt-1 block font-mono">4 / 6</span>
+          <span class="text-xs text-slate-400 mt-1 block">Bays 1 & 3 currently open</span>
+        </div>
+
+        <div class="bg-brand-surface border border-brand-border rounded-xl p-4">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Carrier Dispute Rate</span>
+          <span class="text-2xl font-black text-emerald-400 mt-1 block font-mono">0.0%</span>
+          <span class="text-xs text-slate-400 mt-1 block">100% signed photo proof</span>
+        </div>
+
+        <div class="bg-brand-surface border border-brand-border rounded-xl p-4">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Avg Dock Turnaround</span>
+          <span class="text-2xl font-black text-blue-400 mt-1 block font-mono">54 min</span>
+          <span class="text-xs text-slate-400 mt-1 block">From intake to outbound</span>
+        </div>
+      </div>
+
+      <!-- Management Table -->
+      <div class="bg-brand-surface border border-brand-border rounded-xl overflow-hidden shadow-xl">
+        <div class="p-4 border-b border-brand-border flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 class="font-bold text-white text-base">Denver Express Active Rework Queue</h3>
+            <p class="text-xs text-slate-400">Terminal 6030 Washington St • Real-time status sync</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportQuickBooksCSV()" class="px-3 py-1.5 rounded-lg border border-brand-border bg-brand-card hover:bg-brand-card/80 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 touch-btn">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              Export QuickBooks CSV
+            </button>
+            <button onclick="switchView('dock'); resetForm();" class="px-3 py-1.5 rounded-lg bg-brand-gold text-brand-navy text-xs font-bold transition flex items-center gap-1.5 touch-btn">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              New Dock Intake
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-brand-navy text-xs uppercase text-slate-400 font-semibold border-b border-brand-border">
+              <tr>
+                <th class="py-3 px-4">Job ID</th>
+                <th class="py-3 px-4">Trailer / Carrier</th>
+                <th class="py-3 px-4">Bay</th>
+                <th class="py-3 px-4">Service</th>
+                <th class="py-3 px-4">Time Elapsed</th>
+                <th class="py-3 px-4">Total Amount</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="office-table-body" class="divide-y divide-brand-border/60 text-xs md:text-sm">
+              <!-- Row 1 (Current Active/Completed Demo Job) -->
+              <tr class="hover:bg-brand-card/50 transition">
+                <td class="py-3 px-4 font-mono font-bold text-brand-gold">RW-0842</td>
+                <td class="py-3 px-4">
+                  <div class="font-bold text-white">SWFT-55219</div>
+                  <div class="text-xs text-slate-400">Swift Transportation</div>
+                </td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-brand-navy border border-brand-border font-mono text-xs">Bay 2</span></td>
+                <td class="py-3 px-4">Shifted Pallet Rework</td>
+                <td class="py-3 px-4 font-mono">38 min</td>
+                <td class="py-3 px-4 font-mono font-bold text-white">$482.50</td>
+                <td class="py-3 px-4">
+                  <span id="row-status-0842" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    Certificate Issued
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button onclick="previewSavedCertificate()" class="text-brand-gold hover:underline font-semibold text-xs">View Packet</button>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr class="hover:bg-brand-card/50 transition">
+                <td class="py-3 px-4 font-mono font-bold text-slate-400">RW-0841</td>
+                <td class="py-3 px-4">
+                  <div class="font-bold text-white">KNIG-44102</div>
+                  <div class="text-xs text-slate-400">Knight Transportation</div>
+                </td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-brand-navy border border-brand-border font-mono text-xs">Bay 4</span></td>
+                <td class="py-3 px-4">Axle Weight Rebalance</td>
+                <td class="py-3 px-4 font-mono">45 min</td>
+                <td class="py-3 px-4 font-mono font-bold text-white">$385.00</td>
+                <td class="py-3 px-4">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    Billed to Broker
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button class="text-slate-400 hover:text-white font-semibold text-xs">View Packet</button>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr class="hover:bg-brand-card/50 transition">
+                <td class="py-3 px-4 font-mono font-bold text-slate-400">RW-0840</td>
+                <td class="py-3 px-4">
+                  <div class="font-bold text-white">TQLX-90184</div>
+                  <div class="text-xs text-slate-400">Total Quality Logistics (Brokered)</div>
+                </td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-brand-navy border border-brand-border font-mono text-xs">Bay 6</span></td>
+                <td class="py-3 px-4">Floor Transload (300 ct)</td>
+                <td class="py-3 px-4 font-mono">1 hr 15m</td>
+                <td class="py-3 px-4 font-mono font-bold text-white">$920.00</td>
+                <td class="py-3 px-4">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    Paid via QuickPay
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button class="text-slate-400 hover:text-white font-semibold text-xs">View Packet</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /#view-office -->
+
+  </main>
+
+  <!-- =============================================================== -->
+  <!-- MODAL: FINAL GENERATED REWORK CERTIFICATE (PRINTABLE)           -->
+  <!-- =============================================================== -->
+  <div id="modal-certificate" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-6 overflow-y-auto hidden">
+    <div class="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-auto border border-slate-300">
+      
+      <!-- Top Modal Toolbar (Not printed) -->
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between no-print border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="font-bold text-sm">Certificate #RW-2026-0842 Generated</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition touch-btn">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            Print / Save PDF
+          </button>
+          <button onclick="closeCertificateModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Certificate Body -->
+      <div id="certificate-print-area" class="p-6 md:p-8 space-y-6 text-slate-900 bg-white">
+        
+        <!-- Header -->
+        <div class="flex items-start justify-between border-b-2 border-slate-900 pb-5">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded bg-slate-900 text-amber-400 flex items-center justify-center font-black text-sm">
+                DE
+              </div>
+              <h2 class="text-2xl font-black tracking-tight text-slate-900 uppercase">Denver Express</h2>
+            </div>
+            <p class="text-xs text-slate-600 font-semibold">Warehousing, Cross-Docking & Freight Rework</p>
+            <p class="text-xs text-slate-500">6030 Washington St, Suite 130 • Denver, CO 80216 • (303) 289-4343</p>
+            <p class="text-[11px] text-slate-400">USDOT: 4514095 • MC-1787583 • FDA Food-Grade Certified Facility</p>
+          </div>
+          <div class="text-right">
+            <div class="inline-block bg-slate-100 border border-slate-300 rounded px-3 py-1 font-mono text-xs font-bold text-slate-900">
+              CERTIFICATE #RW-2026-0842
+            </div>
+            <div class="text-xs text-slate-500 mt-1" id="cert-date">Date: Sept 3, 2026 • 17:35 MT</div>
+            <div class="text-[11px] text-emerald-700 font-bold mt-0.5">● STATUS: VERIFIED ROAD-READY</div>
+          </div>
+        </div>
+
+        <!-- Carrier & Load Meta Block -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+          <div>
+            <span class="text-slate-500 block uppercase text-[10px] font-bold">Trailer #</span>
+            <span id="cert-trailer" class="font-mono font-bold text-sm text-slate-900">SWFT-55219</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block uppercase text-[10px] font-bold">Carrier</span>
+            <span id="cert-carrier" class="font-bold text-sm text-slate-900">Swift Transportation</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block uppercase text-[10px] font-bold">Assigned Bay</span>
+            <span id="cert-bay" class="font-bold text-sm text-slate-900">Dock Bay 2</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block uppercase text-[10px] font-bold">Driver Name</span>
+            <span id="cert-driver" class="font-bold text-sm text-slate-900">Marcus Vance</span>
+          </div>
+        </div>
+
+        <!-- Photo Evidence Comparison Grid -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center justify-between">
+            <span>Photographic Evidence Comparison</span>
+            <span class="text-[10px] font-normal text-slate-500">Tamper-Proof GPS & Timestamp Stamped</span>
+          </h4>
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Before Card -->
+            <div class="border border-red-200 rounded-lg p-2.5 bg-red-50/40">
+              <div class="flex items-center justify-between text-[11px] font-bold text-red-700 mb-1.5">
+                <span>BEFORE: Inbound Shift Condition</span>
+                <span class="text-[10px] bg-red-200 text-red-800 px-1 rounded">REJECTED CARGO</span>
+              </div>
+              <img id="cert-before-img" src="" class="w-full h-36 object-cover rounded border border-slate-300" alt="Before damage" />
+              <div class="mt-1.5 text-[10px] text-slate-600">
+                <span>Notes: Leaning against driver-side wall; 4 broken bottom runners.</span>
+              </div>
+            </div>
+
+            <!-- After Card -->
+            <div class="border border-emerald-200 rounded-lg p-2.5 bg-emerald-50/40">
+              <div class="flex items-center justify-between text-[11px] font-bold text-emerald-700 mb-1.5">
+                <span>AFTER: Restacked & Wrapped</span>
+                <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1 rounded">RESTACKED</span>
+              </div>
+              <img id="cert-after-img" src="" class="w-full h-36 object-cover rounded border border-slate-300" alt="After rework" />
+              <div class="mt-1.5 text-[10px] text-slate-600">
+                <span>Notes: Restacked on GMA-1 pallets, double-banded, shrinkwrapped.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Itemized Supplies & Charges -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Itemized Materials & Labor Invoice</h4>
+          <table class="w-full text-left text-xs border border-slate-200 rounded overflow-hidden">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-semibold">
+              <tr>
+                <th class="p-2 border-b">Description</th>
+                <th class="p-2 border-b text-center">Qty</th>
+                <th class="p-2 border-b text-right">Unit Price</th>
+                <th class="p-2 border-b text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="cert-items-table" class="divide-y divide-slate-100">
+              <tr>
+                <td class="p-2 font-medium">New GMA Grade-A Pallets</td>
+                <td class="p-2 text-center" id="cert-qty-pallets">4</td>
+                <td class="p-2 text-right">$18.50</td>
+                <td class="p-2 text-right font-mono" id="cert-total-pallets">$74.00</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Heavy Stretch Wrap Rolls (80 gauge)</td>
+                <td class="p-2 text-center" id="cert-qty-wrap">2</td>
+                <td class="p-2 text-right">$25.00</td>
+                <td class="p-2 text-right font-mono" id="cert-total-wrap">$50.00</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Corner Boards (48" edge protection)</td>
+                <td class="p-2 text-center" id="cert-qty-corners">8</td>
+                <td class="p-2 text-right">$3.00</td>
+                <td class="p-2 text-right font-mono" id="cert-total-corners">$24.00</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Forklift Operator & Dock Crew Labor</td>
+                <td class="p-2 text-center" id="cert-qty-labor">1.25 hrs</td>
+                <td class="p-2 text-right">$125.00/hr</td>
+                <td class="p-2 text-right font-mono" id="cert-total-labor">$156.25</td>
+              </tr>
+              <tr id="cert-row-scale">
+                <td class="p-2 font-medium">Certified Scale Axle Weight Ticket</td>
+                <td class="p-2 text-center">1</td>
+                <td class="p-2 text-right">$35.00</td>
+                <td class="p-2 text-right font-mono">$35.00</td>
+              </tr>
+              <tr id="cert-row-debris">
+                <td class="p-2 font-medium">Broken Pallet & Dunnage Disposal Fee</td>
+                <td class="p-2 text-center">1</td>
+                <td class="p-2 text-right">$45.00</td>
+                <td class="p-2 text-right font-mono">$45.00</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-slate-50 font-bold border-t border-slate-200">
+              <tr>
+                <td colspan="3" class="p-2 text-right uppercase text-slate-600">Total Settlement Due:</td>
+                <td class="p-2 text-right text-sm font-mono text-slate-950" id="cert-grand-total">$384.25</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Signature & Attestation Block -->
+        <div class="border-t border-slate-300 pt-4 grid grid-cols-2 gap-6 items-end">
+          <div>
+            <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">Driver Digital Attestation (Signed on Glass)</span>
+            <div class="h-20 bg-slate-50 border border-slate-300 rounded p-1 flex items-center justify-center">
+              <img id="cert-signature-img" src="" class="max-h-full max-w-full" alt="Driver signature" />
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-600 mt-1">
+              <span>Driver: <strong id="cert-sig-driver-name">Marcus Vance</strong></span>
+              <span id="cert-sig-time">Timestamp: 17:34:02 MT</span>
+            </div>
+          </div>
+          <div class="text-right text-[11px] text-slate-500 space-y-1">
+            <p><strong>Denver Express Warehousing & Cross-Docking</strong></p>
+            <p>Facility Superintendent: Craig / Steve Chapman</p>
+            <p class="text-[10px] text-slate-400">System generated via Yorkstead ReworkFlow v1.0</p>
+          </div>
+        </div>
+
+      </div><!-- /#certificate-print-area -->
+
+      <!-- Action Footer (Not printed) -->
+      <div class="bg-slate-100 p-4 border-t border-slate-200 flex items-center justify-between no-print">
+        <div class="text-xs text-slate-600 flex items-center gap-1.5">
+          <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
+          <span>SMS proof sent to driver mobile: <strong id="cert-sms-phone">(720) 555-0194</strong></span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeCertificateModal(); switchView('office');" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition touch-btn">
+            Done & Back to Office Board
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EMBEDDED SAMPLE IMAGES (DATA-URIS / HIGH FIDELITY SVG SIMULATION) -->
+  <script>
+    // Realistic SVG representations for the demo so it runs with ZERO broken images offline
+    const SAMPLE_BEFORE_1 = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%231a2332"/><rect x="40" y="40" width="520" height="320" fill="%23243147" stroke="%233a4d6b" stroke-width="3"/><text x="60" y="80" fill="%23e2e8f0" font-family="monospace" font-size="16" font-weight="bold">TRAILER REAR INTERIOR - SWFT-55219</text><text x="60" y="105" fill="%23ef4444" font-family="sans-serif" font-size="14" font-weight="bold">CRITICAL MOUNTAIN SHIFT DETECTED</text><g transform="rotate(-14 260 220)"><rect x="180" y="140" width="160" height="150" fill="%23b45309" stroke="%2378350f" stroke-width="4"/><rect x="170" y="290" width="180" height="24" fill="%23d97706"/><line x1="180" y1="180" x2="340" y2="180" stroke="%2378350f" stroke-width="2"/><text x="200" y="220" fill="%23ffffff" font-family="sans-serif" font-size="14" font-weight="bold">LEANING CARGO</text></g><g transform="rotate(8 420 220)"><rect x="360" y="150" width="140" height="140" fill="%2392400e" stroke="%2378350f" stroke-width="3"/><rect x="350" y="290" width="160" height="22" fill="%23d97706"/></g><rect x="40" y="325" width="520" height="35" fill="%230b1320" opacity="0.85"/><text x="50" y="348" fill="%23fbbf24" font-family="monospace" font-size="11">DENVER EXPRESS DOCK BAY 2 • GPS: 39.8058°N, 104.9877°W • TIMESTAMP: 17:14:02 MT</text></svg>`;
+
+    const SAMPLE_BEFORE_2 = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%231e293b"/><rect x="50" y="40" width="500" height="320" fill="%23334155" stroke="%23475569" stroke-width="2"/><text x="70" y="75" fill="%23f8fafc" font-family="monospace" font-size="16" font-weight="bold">DETAIL INSPECTION: BROKEN PALLET RUNNERS</text><rect x="90" y="110" width="420" height="180" fill="%23a16207" stroke="%23713f12" stroke-width="3"/><line x1="90" y1="200" x2="510" y2="200" stroke="%23713f12" stroke-width="4"/><path d="M 220 280 L 290 295 L 340 270" stroke="%23ef4444" stroke-width="8" fill="none"/><text x="180" y="335" fill="%23f87171" font-family="sans-serif" font-size="15" font-weight="bold">CRUSHED PALLET BASE • NON-FORKLIFT COMPLIANT</text><rect x="50" y="330" width="500" height="30" fill="%230f172a" opacity="0.9"/><text x="60" y="350" fill="%2338bdf8" font-family="monospace" font-size="11">EVIDENCE LOG #RW-0842-B2 • CERTIFIED AUDIT TRAIL</text></svg>`;
+
+    const SAMPLE_AFTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%230f172a"/><rect x="40" y="40" width="520" height="320" fill="%231e293b" stroke="%2310b981" stroke-width="3"/><text x="60" y="80" fill="%2310b981" font-family="sans-serif" font-size="18" font-weight="bold">✓ REWORK COMPLETED: ROAD-READY & BANDED</text><rect x="160" y="110" width="280" height="190" fill="%230284c7" opacity="0.85" stroke="%2338bdf8" stroke-width="3"/><line x1="160" y1="160" x2="440" y2="160" stroke="%23ffffff" stroke-width="4" stroke-dasharray="8 6"/><line x1="160" y1="210" x2="440" y2="210" stroke="%23ffffff" stroke-width="4" stroke-dasharray="8 6"/><rect x="150" y="300" width="300" height="26" fill="%23b45309" stroke="%2378350f" stroke-width="2"/><text x="180" y="145" fill="%23ffffff" font-family="sans-serif" font-size="13" font-weight="bold">NEW GMA GRADE-A PALLET</text><text x="180" y="195" fill="%23ffffff" font-family="sans-serif" font-size="13" font-weight="bold">80-GAUGE TIGHT SHRINKWRAP</text><text x="180" y="245" fill="%23ffffff" font-family="sans-serif" font-size="13" font-weight="bold">CORNER BOARDS SECURED</text><rect x="40" y="325" width="520" height="35" fill="%23022c22" opacity="0.9"/><text x="50" y="348" fill="%2334d399" font-family="monospace" font-size="11">INSPECTED BY: DENVER EXPRESS DOCK #2 • RELEASE CONFIRMED</text></svg>`;
+
+    const SAMPLE_SIGNATURE = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120"><path d="M 30 70 Q 70 20 110 50 T 170 60 Q 210 30 250 80 T 320 45 Q 360 40 380 75" fill="none" stroke="%230f172a" stroke-width="4" stroke-linecap="round"/><text x="40" y="105" font-family="sans-serif" font-size="13" fill="%2364748b">Marcus Vance - OTR Driver</text></svg>`;
+  </script>
+
+  <!-- APP STATE & LOGIC -->
+  <script>
+    // State
+    let currentStep = 1;
+    let serviceType = "Shifted Pallets";
+    let counts = {
+      pallets: 4,
+      wrap: 2,
+      corners: 8,
+      labor: 1.25
+    };
+    const RATES = {
+      pallets: 18.50,
+      wrap: 25.00,
+      corners: 3.00,
+      labor: 125.00,
+      scale: 35.00,
+      debris: 45.00
+    };
+
+    let before1Captured = false;
+    let before2Captured = false;
+    let afterCaptured = false;
+    let hasSignature = false;
+
+    // Signature Canvas setup
+    let canvas, ctx, isDrawing = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initSignaturePad();
+      calculateTotal();
+      // Preload sample photos for snappy demo feel
+      loadSampleBeforePhoto(1);
+      loadSampleBeforePhoto(2);
+      loadSampleAfterPhoto();
+      simulateSignature();
+    });
+
+    function switchView(mode) {
+      const dockView = document.getElementById('view-dock');
+      const officeView = document.getElementById('view-office');
+      const btnDock = document.getElementById('btn-mode-dock');
+      const btnOffice = document.getElementById('btn-mode-office');
+
+      if (mode === 'dock') {
+        dockView.classList.remove('hidden');
+        officeView.classList.add('hidden');
+        btnDock.className = "px-3 py-1.5 rounded-md text-xs font-semibold bg-brand-gold text-brand-navy transition flex items-center gap-1.5 touch-btn";
+        btnOffice.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5 touch-btn";
+      } else {
+        dockView.classList.add('hidden');
+        officeView.classList.remove('hidden');
+        btnOffice.className = "px-3 py-1.5 rounded-md text-xs font-semibold bg-brand-gold text-brand-navy transition flex items-center gap-1.5 touch-btn";
+        btnDock.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5 touch-btn";
+      }
+      lucide.createIcons();
+    }
+
+    function goToStep(step) {
+      currentStep = step;
+      // Hide all step contents
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`step-content-${i}`);
+        if (el) el.classList.add('hidden');
+        
+        const pill = document.getElementById(`step-pill-${i}`);
+        const line = document.getElementById(`step-line-${i}`);
+
+        if (i < step) {
+          pill.className = "flex items-center gap-2 text-emerald-400";
+          pill.querySelector('span:first-child').className = "w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500 flex items-center justify-center font-bold";
+          pill.querySelector('span:first-child').innerHTML = "✓";
+          if (line) line.className = "h-0.5 flex-1 mx-3 bg-emerald-500/50";
+        } else if (i === step) {
+          pill.className = "flex items-center gap-2 text-brand-gold";
+          pill.querySelector('span:first-child').className = "w-6 h-6 rounded-full bg-brand-gold text-brand-navy flex items-center justify-center font-bold";
+          pill.querySelector('span:first-child').innerHTML = i;
+          if (line) line.className = "h-0.5 flex-1 mx-3 bg-brand-border";
+        } else {
+          pill.className = "flex items-center gap-2 text-slate-500";
+          pill.querySelector('span:first-child').className = "w-6 h-6 rounded-full bg-brand-border text-slate-400 flex items-center justify-center font-bold";
+          pill.querySelector('span:first-child').innerHTML = i;
+          if (line) line.className = "h-0.5 flex-1 mx-3 bg-brand-border";
+        }
+      }
+
+      const activeEl = document.getElementById(`step-content-${step}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      if (step === 4) {
+        document.getElementById('sign-step-total').innerText = document.getElementById('live-total-badge').innerText;
+        // Resize canvas if needed
+        resizeCanvas();
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      lucide.createIcons();
+    }
+
+    function selectServiceType(type) {
+      serviceType = type;
+      const pills = document.querySelectorAll('.service-pill');
+      pills.forEach(p => {
+        p.className = "service-pill border border-brand-border bg-brand-card hover:bg-brand-card/80 text-slate-300 rounded-xl p-3.5 text-left transition touch-btn";
+      });
+      event.currentTarget.className = "service-pill border-2 border-brand-gold bg-brand-gold/10 text-white rounded-xl p-3.5 text-left transition touch-btn";
+    }
+
+    function setSampleTrailer() {
+      const samples = [
+        { t: "SWFT-55219", c: "Swift Transportation", d: "Marcus Vance", b: "Bay 2" },
+        { t: "KNIG-44102", c: "Knight Transportation", d: "David Ross", b: "Bay 4" },
+        { t: "SCHN-88194", c: "Schneider National", d: "Robert Miller", b: "Bay 1" }
+      ];
+      const pick = samples[Math.floor(Math.random() * samples.length)];
+      document.getElementById('inp-trailer').value = pick.t;
+      document.getElementById('inp-carrier').value = pick.c;
+      document.getElementById('inp-driver').value = pick.d;
+      document.getElementById('inp-bay').value = pick.b;
+    }
+
+    function loadSampleBeforePhoto(idx) {
+      if (idx === 1) {
+        const img = document.getElementById('before-img-1');
+        img.src = SAMPLE_BEFORE_1;
+        img.classList.remove('hidden');
+        document.getElementById('before-placeholder-1').classList.add('hidden');
+        document.getElementById('before-tag-1').innerText = "✓ Mountain Shift Overview Captured (17:14 MT)";
+        document.getElementById('before-tag-1').className = "text-emerald-400 font-mono text-xs";
+        before1Captured = true;
+      } else {
+        const img = document.getElementById('before-img-2');
+        img.src = SAMPLE_BEFORE_2;
+        img.classList.remove('hidden');
+        document.getElementById('before-placeholder-2').classList.add('hidden');
+        document.getElementById('before-tag-2').innerText = "✓ Broken Baseboard Detail Captured (17:15 MT)";
+        document.getElementById('before-tag-2').className = "text-emerald-400 font-mono text-xs";
+        before2Captured = true;
+      }
+    }
+
+    function loadSampleAfterPhoto() {
+      const img = document.getElementById('after-img');
+      img.src = SAMPLE_AFTER;
+      img.classList.remove('hidden');
+      document.getElementById('after-placeholder').classList.add('hidden');
+      document.getElementById('after-tag').innerText = "✓ Completed Restack Staged in Bay 2 (17:32 MT)";
+      document.getElementById('after-tag').className = "text-emerald-400 font-mono text-xs";
+      afterCaptured = true;
+    }
+
+    function handleFileUpload(e, imgId, placeholderId, tagId) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const img = document.getElementById(imgId);
+          img.src = evt.target.result;
+          img.classList.remove('hidden');
+          document.getElementById(placeholderId).classList.add('hidden');
+          document.getElementById(tagId).innerText = `✓ Captured ${file.name} (${new Date().toLocaleTimeString()})`;
+          document.getElementById(tagId).className = "text-emerald-400 font-mono text-xs";
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function toggleDefectTag(btn) {
+      if (btn.innerText.startsWith('✓')) {
+        btn.innerText = '+ ' + btn.innerText.substring(2);
+        btn.className = "tag-btn px-3 py-1.5 rounded-lg border border-brand-border bg-brand-dark text-slate-400 text-xs font-semibold";
+      } else {
+        btn.innerText = '✓ ' + btn.innerText.substring(2);
+        btn.className = "tag-btn px-3 py-1.5 rounded-lg border border-brand-gold bg-brand-gold/20 text-brand-gold text-xs font-semibold";
+      }
+    }
+
+    function changeCounter(key, delta) {
+      counts[key] = Math.max(0, counts[key] + delta);
+      if (key === 'labor') {
+        document.getElementById(`val-${key}`).innerText = counts[key].toFixed(2) + 'h';
+      } else {
+        document.getElementById(`val-${key}`).innerText = counts[key];
+      }
+      calculateTotal();
+    }
+
+    function calculateTotal() {
+      let sum = 0;
+      sum += counts.pallets * RATES.pallets;
+      sum += counts.wrap * RATES.wrap;
+      sum += counts.corners * RATES.corners;
+      sum += counts.labor * RATES.labor;
+
+      const scaleCheck = document.getElementById('chk-scale').checked;
+      const debrisCheck = document.getElementById('chk-debris').checked;
+
+      if (scaleCheck) sum += RATES.scale;
+      if (debrisCheck) sum += RATES.debris;
+
+      const formatted = '$' + sum.toFixed(2);
+      document.getElementById('live-total-badge').innerText = formatted;
+      const signTotal = document.getElementById('sign-step-total');
+      if (signTotal) signTotal.innerText = formatted;
+      return sum;
+    }
+
+    // SIGNATURE PAD
+    function initSignaturePad() {
+      canvas = document.getElementById('sig-canvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+
+      // Touch events for mobile/tablet
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        isDrawing = true;
+        document.getElementById('sig-placeholder-text').style.display = 'none';
+        ctx.beginPath();
+        ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+      });
+
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!isDrawing) return;
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        ctx.stroke();
+        hasSignature = true;
+      });
+
+      canvas.addEventListener('touchend', () => isDrawing = false);
+    }
+
+    function startDrawing(e) {
+      isDrawing = true;
+      document.getElementById('sig-placeholder-text').style.display = 'none';
+      const rect = canvas.getBoundingClientRect();
+      ctx.beginPath();
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+      hasSignature = true;
+    }
+
+    function stopDrawing() {
+      isDrawing = false;
+    }
+
+    function clearSignature() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('sig-placeholder-text').style.display = 'flex';
+      hasSignature = false;
+    }
+
+    function simulateSignature() {
+      // Create realistic preloaded stroke on canvas
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('sig-placeholder-text').style.display = 'none';
+      ctx.beginPath();
+      ctx.moveTo(40, 80);
+      ctx.bezierCurveTo(80, 20, 140, 120, 180, 60);
+      ctx.bezierCurveTo(220, 30, 260, 90, 320, 50);
+      ctx.stroke();
+      hasSignature = true;
+    }
+
+    function resizeCanvas() {
+      // Ensure canvas matches client width for crisp display
+      if (canvas) {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 8;
+        canvas.height = 140;
+        simulateSignature();
+      }
+    }
+
+    // COMPLETE JOB & SHOW CERTIFICATE MODAL
+    function completeJobAndShowCertificate() {
+      const trailer = document.getElementById('inp-trailer').value || "SWFT-55219";
+      const carrier = document.getElementById('inp-carrier').value || "Swift Transportation";
+      const driver = document.getElementById('inp-driver').value || "Marcus Vance";
+      const bay = document.getElementById('inp-bay').value || "Bay 2";
+      const phone = document.getElementById('inp-phone').value || "(720) 555-0194";
+
+      // Populate Certificate Fields
+      document.getElementById('cert-trailer').innerText = trailer;
+      document.getElementById('cert-carrier').innerText = carrier;
+      document.getElementById('cert-bay').innerText = bay;
+      document.getElementById('cert-driver').innerText = driver;
+      document.getElementById('cert-sig-driver-name').innerText = driver;
+      document.getElementById('cert-sms-phone').innerText = phone;
+
+      // Populate Quantities & Totals
+      document.getElementById('cert-qty-pallets').innerText = counts.pallets;
+      document.getElementById('cert-total-pallets').innerText = '$' + (counts.pallets * RATES.pallets).toFixed(2);
+
+      document.getElementById('cert-qty-wrap').innerText = counts.wrap;
+      document.getElementById('cert-total-wrap').innerText = '$' + (counts.wrap * RATES.wrap).toFixed(2);
+
+      document.getElementById('cert-qty-corners').innerText = counts.corners;
+      document.getElementById('cert-total-corners').innerText = '$' + (counts.corners * RATES.corners).toFixed(2);
+
+      document.getElementById('cert-qty-labor').innerText = counts.labor.toFixed(2) + ' hrs';
+      document.getElementById('cert-total-labor').innerText = '$' + (counts.labor * RATES.labor).toFixed(2);
+
+      const scaleCheck = document.getElementById('chk-scale').checked;
+      const debrisCheck = document.getElementById('chk-debris').checked;
+
+      document.getElementById('cert-row-scale').style.display = scaleCheck ? 'table-row' : 'none';
+      document.getElementById('cert-row-debris').style.display = debrisCheck ? 'table-row' : 'none';
+
+      const grandTotal = calculateTotal();
+      document.getElementById('cert-grand-total').innerText = '$' + grandTotal.toFixed(2);
+
+      // Images into Certificate
+      const beforeImgSrc = document.getElementById('before-img-1').src || SAMPLE_BEFORE_1;
+      const afterImgSrc = document.getElementById('after-img').src || SAMPLE_AFTER;
+      document.getElementById('cert-before-img').src = beforeImgSrc;
+      document.getElementById('cert-after-img').src = afterImgSrc;
+
+      // Signature image
+      const sigData = canvas ? canvas.toDataURL() : SAMPLE_SIGNATURE;
+      document.getElementById('cert-signature-img').src = sigData;
+
+      // Show Modal
+      document.getElementById('modal-certificate').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function previewSavedCertificate() {
+      completeJobAndShowCertificate();
+    }
+
+    function closeCertificateModal() {
+      document.getElementById('modal-certificate').classList.add('hidden');
+    }
+
+    function resetForm() {
+      setSampleTrailer();
+      goToStep(1);
+    }
+
+    function exportQuickBooksCSV() {
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + "Job_ID,Date,Trailer_Num,Carrier_Name,Service_Type,Bay_Num,Driver_Name,Driver_Phone,Pallets_Qty,Wrap_Qty,Labor_Hours,Scale_Ticket,Grand_Total,Status\n"
+        + "RW-0842,2026-09-03,SWFT-55219,Swift Transportation,Shifted Pallets,Bay 2,Marcus Vance,7205550194,4,2,1.25,Yes,482.50,Completed-Billed\n"
+        + "RW-0841,2026-09-03,KNIG-44102,Knight Transportation,Axle Rebalance,Bay 4,David Ross,3035559812,0,0,1.50,Yes,385.00,Billed-Pending\n"
+        + "RW-0840,2026-09-03,TQLX-90184,TQL Brokered,Floor Transload,Bay 6,John Miller,7205554311,26,4,3.00,No,920.00,Paid-QuickPay\n";
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Denver_Express_Rework_QuickBooks_Export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
