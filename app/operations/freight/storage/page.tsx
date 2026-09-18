@@ -5,7 +5,7 @@ import { Archive, Calendar, DollarSign, Clock, ShieldCheck } from "lucide-react"
 
 export default function StoragePage() {
   const { jobs, pallets } = useWarehouseStore();
-  const storageJobs = jobs.filter((j) => j.service === "Short-Term Storage" || j.status === "storage");
+  const storageJobs = jobs.filter((j) => j.service === "Short-Term Storage" || j.warehouseLocations.some((l) => l.startsWith("A-") || l.startsWith("B-")));
 
   return (
     <div className="space-y-6">

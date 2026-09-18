@@ -1,17 +1,18 @@
 /**
  * Denver Express Warehouse Operations System — Shared Domain Model
- * Facility: ~60,000 sq. ft. Food-Grade Facility (6030 Washington St, Denver, CO)
- * Dock: 6 Active Bay Doors (Doors 1-6)
+ * Facility: ~60,000 sq. ft. Food-Grade Facility (6030 Washington St, Suite 130, Denver, CO)
+ * Note: Facility layout, doors, and racks are illustrative demo configurations.
  */
 
 export type JobStatus =
-  | "inbound"
+  | "requested"
+  | "scheduled"
+  | "arrived"
   | "waiting"
   | "dock_assigned"
-  | "active_rework"
-  | "staged"
-  | "storage"
+  | "in_progress"
   | "awaiting_approval"
+  | "staged"
   | "ready_for_billing"
   | "completed";
 
@@ -44,18 +45,21 @@ export type PalletStatus =
   | "quarantine";
 
 export type LocationZone =
-  | "rack_storage"
-  | "floor_staging"
-  | "rework_bay"
-  | "dock_door"
-  | "outbound_staging";
+  | "INBOUND"
+  | "STAGING"
+  | "CROSS-DOCK"
+  | "REWORK"
+  | "STORAGE"
+  | "HOLD"
+  | "OUTBOUND";
 
 export type TrailerLoadStatus =
-  | "loaded"
-  | "unloading"
-  | "empty"
-  | "reloading"
-  | "drop_trailer";
+  | "expected"
+  | "arrived"
+  | "waiting"
+  | "at_door"
+  | "staged_ready"
+  | "departed";
 
 export type ExceptionType =
   | "leaning_pallet"
@@ -82,10 +86,10 @@ export interface PalletMovement {
 }
 
 export interface FreightUnit {
-  id: string; // e.g. "DX-260918-037-P12"
+  id: string; // e.g. "DX-260918-037-P01"
   jobId: string;
   palletNumber: number;
-  currentLocation: string; // e.g. "RW-01", "A-02", "D-02"
+  currentLocation: string; // e.g. "RW-01", "A-02", "D-03"
   weightLbs: number;
   dimensions: {
     lengthIn: number;
@@ -101,7 +105,7 @@ export interface FreightUnit {
 }
 
 export interface WarehouseLocation {
-  id: string; // e.g. "A-01", "RW-01", "ST-04", "D-02"
+  id: string; // e.g. "D-01", "RW-01", "ST-04", "A-01"
   name: string;
   zone: LocationZone;
   capacityPallets: number;
@@ -115,11 +119,12 @@ export interface YardTrailer {
   trailerNumber: string; // e.g. "KNIG-44102"
   carrier: string;
   carrierScac?: string;
+  jobId: string;
   driverName: string;
   driverPhone: string;
   arrival: string; // ISO date
   appointment?: string;
-  yardLocation: string; // "Spot Y-04", "Dock 2", etc.
+  yardLocation: string; // "Spot Y-04", "Door 3", etc.
   assignedDoor: string | null; // "Door 1" .. "Door 6"
   loadStatus: TrailerLoadStatus;
   sealNumber: string;
@@ -146,6 +151,16 @@ export interface OperationalException {
   additionalCost?: number;
   photos: string[];
   resolutionNotes?: string;
+}
+
+export interface JobTimelineEvent {
+  id: string;
+  stage: string;
+  timestamp: string;
+  label: string;
+  detail: string;
+  completed: boolean;
+  current?: boolean;
 }
 
 export interface WarehouseJob {
@@ -177,7 +192,7 @@ export interface WarehouseJob {
   arrival: string;
   appointment?: string;
   dockDoor: string | null; // "Door 1" .. "Door 6"
-  warehouseLocations: string[]; // e.g. ["RW-01", "ST-02"]
+  warehouseLocations: string[]; // e.g. ["D-03", "RW-01"]
   palletCount: number;
   pallets: string[]; // FreightUnit IDs
   labor: {
@@ -185,8 +200,15 @@ export interface WarehouseJob {
     assignedTech: string;
     hourlyRate: number;
   };
-  equipment: string[]; // e.g. ["FL-01 (Yale)", "SR-02"]
+  equipment: string[]; // e.g. ["FL-01 (Yale)", "SR-01"]
+  materials: {
+    palletsUsed: number;
+    palletType: string;
+    wrapRollsUsed: number;
+    cornerBoardsUsed: number;
+  };
   quoteAmount: number;
+  approvedAdditions: number;
   billableAmount: number;
   billingStatus: "unbilled" | "pending_review" | "invoiced" | "paid";
   notes: string;
@@ -200,6 +222,7 @@ export interface WarehouseJob {
     signedCertUrl?: string;
     hasSignature: boolean;
   };
+  timeline: JobTimelineEvent[];
   exceptions: string[]; // Exception IDs
   createdAt: string;
   updatedAt: string;

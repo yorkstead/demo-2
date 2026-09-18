@@ -29,7 +29,7 @@ export function OperationsNav() {
   const { exceptions, jobs } = useWarehouseStore();
 
   const pendingExceptionsCount = exceptions.filter((e) => e.approvalStatus === "pending").length;
-  const activeReworkCount = jobs.filter((j) => j.status === "active_rework" || j.status === "inbound").length;
+  const activeReworkCount = jobs.filter((j) => j.status === "in_progress" || j.status === "dock_assigned" || j.status === "awaiting_approval").length;
 
   const sections = [
     {

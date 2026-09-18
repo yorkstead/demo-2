@@ -11,6 +11,7 @@ import {
   RateCardItem,
   JobStatus,
   ApprovalStatus,
+  PalletMovement,
 } from "./types";
 import {
   INITIAL_JOBS,
@@ -23,18 +24,32 @@ import {
 } from "./mock-warehouse-data";
 
 const STORAGE_KEYS = {
-  JOBS: "dx_ops_jobs_v1",
-  PALLETS: "dx_ops_pallets_v1",
-  LOCATIONS: "dx_ops_locations_v1",
-  TRAILERS: "dx_ops_trailers_v1",
-  EXCEPTIONS: "dx_ops_exceptions_v1",
-  CUSTOMERS: "dx_ops_customers_v1",
-  RATE_CARD: "dx_ops_rate_card_v1",
+  JOBS: "dx_ops_jobs_v2",
+  PALLETS: "dx_ops_pallets_v2",
+  LOCATIONS: "dx_ops_locations_v2",
+  TRAILERS: "dx_ops_trailers_v2",
+  EXCEPTIONS: "dx_ops_exceptions_v2",
+  CUSTOMERS: "dx_ops_customers_v2",
+  RATE_CARD: "dx_ops_rate_card_v2",
 };
 
 export class WarehouseStore {
+  private static memoryStore: Record<string, any> = {};
+
+  static resetToDefaults(): void {
+    this.memoryStore = {};
+    if (typeof window !== "undefined") {
+      try {
+        Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+        window.dispatchEvent(new CustomEvent("dx_store_update", { detail: { key: "reset" } }));
+      } catch {}
+    }
+  }
+
   private static getStored<T>(key: string, fallback: T): T {
-    if (typeof window === "undefined") return fallback;
+    if (typeof window === "undefined") {
+      return this.memoryStore[key] !== undefined ? this.memoryStore[key] : fallback;
+    }
     try {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : fallback;
@@ -44,7 +59,10 @@ export class WarehouseStore {
   }
 
   private static setStored<T>(key: string, val: T): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      this.memoryStore[key] = val;
+      return;
+    }
     try {
       localStorage.setItem(key, JSON.stringify(val));
       window.dispatchEvent(new CustomEvent("dx_store_update", { detail: { key } }));
@@ -72,10 +90,45 @@ export class WarehouseStore {
   }
 
   static updateJobStatus(id: string, status: JobStatus): WarehouseJob | null {
+    const jobs = this.getJobs();
+    const job = jobs.find((j) => j.id === id);
+    if (!job) return null;
+
     const updates: Partial<WarehouseJob> = { status };
     if (status === "completed") {
       updates.completedAt = new Date().toISOString();
+      updates.billingStatus = "invoiced";
+    } else if (status === "ready_for_billing") {
+      updates.billingStatus = "pending_review";
     }
+
+    // Advance timeline
+    const timeline = [...(job.timeline || [])];
+    const stageMap: Record<JobStatus, string> = {
+      requested: "Requested",
+      scheduled: "Scheduled",
+      arrived: "Arrived",
+      waiting: "Waiting",
+      dock_assigned: "Docked",
+      in_progress: "Rework",
+      awaiting_approval: "Awaiting Approval",
+      staged: "Staging",
+      ready_for_billing: "Billing Review",
+      completed: "Completed",
+    };
+    const currentStageName = stageMap[status];
+
+    timeline.forEach((t) => {
+      if (t.stage.toLowerCase() === currentStageName.toLowerCase()) {
+        t.completed = true;
+        t.current = true;
+        t.timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      } else {
+        t.current = false;
+      }
+    });
+    updates.timeline = timeline;
+
     return this.updateJob(id, updates);
   }
 
@@ -89,23 +142,23 @@ export class WarehouseStore {
       status: door ? "dock_assigned" : job.status,
     });
 
-    // Update corresponding trailer if present
+    // Update corresponding trailer in yard
     const trailers = this.getTrailers();
-    const trailerIdx = trailers.findIndex((t) => t.trailerNumber === job.trailer);
+    const trailerIdx = trailers.findIndex((t) => t.jobId === jobId || t.trailerNumber === job.trailer);
     if (trailerIdx !== -1) {
       trailers[trailerIdx].assignedDoor = door;
-      trailers[trailerIdx].yardLocation = door ? door : "Yard Staging";
-      if (door) trailers[trailerIdx].loadStatus = "unloading";
+      trailers[trailerIdx].yardLocation = door ? door : "Spot Y-03";
+      trailers[trailerIdx].loadStatus = door ? "at_door" : "waiting";
       this.setStored(STORAGE_KEYS.TRAILERS, trailers);
     }
 
-    // Update location status
+    // Update location capacities & occupied states
     const locations = this.getLocations();
     locations.forEach((loc) => {
-      if (loc.zone === "dock_door") {
-        if (loc.name.includes(door || "___NEVER___")) {
+      if (loc.zone === "INBOUND" || loc.zone === "CROSS-DOCK" || loc.zone === "REWORK" || loc.zone === "OUTBOUND") {
+        if (door && loc.name.includes(door)) {
           loc.status = "full";
-        } else if (door && loc.name.includes(job.dockDoor || "___NEVER___")) {
+        } else if (job.dockDoor && loc.name.includes(job.dockDoor)) {
           loc.status = "available";
         }
       }
@@ -119,16 +172,22 @@ export class WarehouseStore {
     return this.getStored(STORAGE_KEYS.PALLETS, INITIAL_PALLETS);
   }
 
+  static getPalletById(id: string): FreightUnit | undefined {
+    return this.getPallets().find((p) => p.id === id);
+  }
+
   static updatePalletLocation(palletId: string, toLocation: string, operator: string, reason: string): FreightUnit | null {
     const pallets = this.getPallets();
     const idx = pallets.findIndex((p) => p.id === palletId);
     if (idx === -1) return null;
     const pallet = pallets[idx];
-    const movement = {
+    const prevLocation = pallet.currentLocation;
+
+    const movement: PalletMovement = {
       id: "MOV-" + Date.now().toString(),
       palletId,
       timestamp: new Date().toISOString(),
-      fromLocation: pallet.currentLocation,
+      fromLocation: prevLocation,
       toLocation,
       operator,
       reason,
@@ -137,6 +196,33 @@ export class WarehouseStore {
     pallet.movementHistory = [movement, ...pallet.movementHistory];
     pallets[idx] = pallet;
     this.setStored(STORAGE_KEYS.PALLETS, pallets);
+
+    // Update Warehouse Locations occupancy
+    const locations = this.getLocations();
+    locations.forEach((loc) => {
+      if (loc.id === prevLocation || loc.name.includes(prevLocation)) {
+        loc.currentPalletIds = loc.currentPalletIds.filter((id) => id !== palletId);
+        if (loc.currentPalletIds.length === 0) loc.status = "available";
+        else loc.status = "partial";
+      }
+      if (loc.id === toLocation || loc.name.includes(toLocation)) {
+        if (!loc.currentPalletIds.includes(palletId)) {
+          loc.currentPalletIds.push(palletId);
+        }
+        if (loc.currentPalletIds.length >= loc.capacityPallets) loc.status = "full";
+        else loc.status = "partial";
+      }
+    });
+    this.setStored(STORAGE_KEYS.LOCATIONS, locations);
+
+    // Reconcile associated job locations
+    const job = this.getJobById(pallet.jobId);
+    if (job) {
+      const activeLocs = new Set(job.warehouseLocations);
+      activeLocs.add(toLocation);
+      this.updateJob(job.id, { warehouseLocations: Array.from(activeLocs) });
+    }
+
     return pallet;
   }
 
@@ -163,11 +249,21 @@ export class WarehouseStore {
     exceptions[idx] = ex;
     this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
 
-    // If approved, advance job status if it was awaiting approval
+    // If approved, advance job status from awaiting_approval to in_progress and complete timeline stage
     if (status === "approved") {
       const job = this.getJobById(ex.jobId);
-      if (job && job.status === "awaiting_approval") {
-        this.updateJobStatus(job.id, "active_rework");
+      if (job) {
+        const timeline = [...(job.timeline || [])];
+        timeline.forEach((t) => {
+          if (t.stage.toLowerCase().includes("awaiting approval") || t.stage.toLowerCase().includes("hold")) {
+            t.completed = true;
+            t.current = false;
+          }
+        });
+        this.updateJob(job.id, { timeline });
+        if (job.status === "awaiting_approval") {
+          this.updateJobStatus(job.id, "in_progress");
+        }
       }
     }
     return ex;
@@ -212,6 +308,8 @@ export function useWarehouseStore() {
     exceptions: WarehouseStore.getExceptions(),
     customers: WarehouseStore.getCustomers(),
     rateCard: WarehouseStore.getRateCard(),
+    getJobById: useCallback(WarehouseStore.getJobById.bind(WarehouseStore), []),
+    getPalletById: useCallback(WarehouseStore.getPalletById.bind(WarehouseStore), []),
     updateJobStatus: useCallback(WarehouseStore.updateJobStatus.bind(WarehouseStore), []),
     assignDockDoor: useCallback(WarehouseStore.assignDockDoor.bind(WarehouseStore), []),
     updatePalletLocation: useCallback(WarehouseStore.updatePalletLocation.bind(WarehouseStore), []),
