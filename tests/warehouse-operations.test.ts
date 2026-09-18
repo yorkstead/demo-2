@@ -66,7 +66,7 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(door6?.status).toBe("full");
   });
 
-  it("authorizes exception quote addition and advances job state", () => {
+  it("authorizes exception quote addition and advances job state without making unperformed work billable prematurely", () => {
     const updatedEx = WarehouseStore.updateExceptionApproval("EX-1049", "approved", "Tom Bradley (Broker Authorized)");
     expect(updatedEx?.approvalStatus).toBe("approved");
     expect(updatedEx?.approvedBy).toBe("Tom Bradley (Broker Authorized)");
@@ -74,7 +74,10 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     const job = WarehouseStore.getJobById("DX-260918-037");
     expect(job?.status).toBe("in_progress");
     expect(job?.approvedAdditions).toBe(285.0);
-    expect(job?.billableAmount).toBe(735.0); // 450 + 285
+    expect(job?.authorizedAmount).toBe(735.0); // 450 + 285 authorized
+    expect(job?.performedAmount).toBe(450.0); // Corrective work not performed yet!
+    expect(job?.billableAmount).toBe(450.0); // Only performed work is billable!
+    expect(job?.billingReadinessStatus).toBe("authorized_work_pending");
 
     // Check timeline entry completed
     const approvalTimeline = job?.timeline.find((t) => t.stage === "Awaiting Approval");
@@ -114,7 +117,7 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(job?.completedAt).toBeDefined();
   });
 
-  it("handles customer view, change order approval, and corrective rebuild workflow", () => {
+  it("handles customer view, change order approval, corrective rebuild, and billing sign-off workflow", () => {
     // 1. Customer views the authorization page
     const viewedEx = WarehouseStore.recordCustomerView("EX-1049", "Tom Bradley (Broker Authorized)");
     expect(viewedEx?.customerViewedTime).toBeDefined();
@@ -132,8 +135,10 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(jobAfterApproval?.quoteAmount).toBe(450.0);
     expect(jobAfterApproval?.approvedAdditions).toBe(285.0);
     expect(jobAfterApproval?.pendingAdditions).toBe(0.0);
-    expect(jobAfterApproval?.billableAmount).toBe(735.0);
-    expect(jobAfterApproval?.projectedAmount).toBe(735.0);
+    expect(jobAfterApproval?.authorizedAmount).toBe(735.0);
+    expect(jobAfterApproval?.performedAmount).toBe(450.0); // Not performed yet!
+    expect(jobAfterApproval?.billableAmount).toBe(450.0); // Billable only after work performed
+    expect(jobAfterApproval?.billingReadinessStatus).toBe("authorized_work_pending");
     expect(jobAfterApproval?.status).toBe("in_progress");
 
     // 3. Operator starts corrective work on Bay RW-01
@@ -159,9 +164,21 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     const rw01 = WarehouseStore.getLocations().find((l) => l.id === "RW-01");
     expect(rw01?.currentPalletIds.includes("DX-260918-037-P08")).toBe(false);
 
-    // Check job state advanced to staged
-    const finalJob = WarehouseStore.getJobById("DX-260918-037");
-    expect(finalJob?.status).toBe("staged");
+    // Check job state advanced to staged, performedAmount = 735, billableAmount = 735, readiness = needs_review
+    const jobAfterWork = WarehouseStore.getJobById("DX-260918-037");
+    expect(jobAfterWork?.status).toBe("staged");
+    expect(jobAfterWork?.performedAmount).toBe(735.0);
+    expect(jobAfterWork?.billableAmount).toBe(735.0);
+    expect(jobAfterWork?.billingReadinessStatus).toBe("needs_review");
+
+    // 5. Billing manager signs off
+    const jobAfterReview = WarehouseStore.reviewAndApproveBilling("DX-260918-037", "Sarah Lin");
+    expect(jobAfterReview?.billingReadinessStatus).toBe("ready_to_invoice");
+
+    // 6. Invoicing release
+    const jobAfterInvoice = WarehouseStore.markJobInvoiced("DX-260918-037", "INV-109823");
+    expect(jobAfterInvoice?.billingReadinessStatus).toBe("invoiced");
+    expect(jobAfterInvoice?.billingStatus).toBe("invoiced");
   });
 
   it("handles freight hold when customer declines change order", () => {

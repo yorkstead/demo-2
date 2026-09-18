@@ -191,6 +191,42 @@ export interface OperationalException {
   resolutionNotes?: string;
 }
 
+export type BillingReadinessStatus =
+  | "wip"
+  | "awaiting_authorization"
+  | "authorized_work_pending"
+  | "needs_documentation"
+  | "needs_review"
+  | "ready_to_invoice"
+  | "invoiced";
+
+export interface DocumentationItem {
+  key: string;
+  label: string;
+  category: "intake" | "freight" | "authorization" | "completion" | "release";
+  required: boolean;
+  completed: boolean;
+  timestamp?: string;
+  verifiedBy?: string;
+  notes?: string;
+}
+
+export interface JobDocumentationCompleteness {
+  arrivalRecord: boolean;
+  bol: boolean;
+  inboundEvidence: boolean;
+  exceptionDocumentation: boolean;
+  customerAuthorization: boolean;
+  workEvidence: boolean;
+  completionEvidence: boolean;
+  departureRelease: boolean;
+  items: DocumentationItem[];
+  allRequiredPresent: boolean;
+  completedCount: number;
+  totalCount: number;
+  percent: number;
+}
+
 export interface JobTimelineEvent {
   id: string;
   stage: string;
@@ -248,9 +284,14 @@ export interface WarehouseJob {
   quoteAmount: number; // Base authorized work
   pendingAdditions?: number; // Pending change orders awaiting customer approval
   approvedAdditions?: number; // Customer authorized additions
-  billableAmount: number; // Authorized billable total (quoteAmount + approvedAdditions)
+  authorizedAmount?: number; // Total customer authorized work (quoteAmount + approvedAdditions)
+  performedAmount?: number; // Value of work actually performed by warehouse labor
+  billableAmount: number; // Authorized performed work eligible to invoice
+  storageAmount?: number; // Additional short-term storage fee if applicable
   projectedAmount?: number; // Projected total if pending approved (quoteAmount + pendingAdditions + approvedAdditions)
   billingStatus: "unbilled" | "pending_review" | "invoiced" | "paid";
+  billingReadinessStatus?: BillingReadinessStatus;
+  documentationCompleteness?: JobDocumentationCompleteness;
   notes: string;
   photos: {
     before: string[];

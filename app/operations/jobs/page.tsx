@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useWarehouseStore } from "@/lib/domain/store";
-import { StatusBadge, PriorityBadge, SeverityBadge, ApprovalBadge, ExceptionLifecycleBadge } from "@/components/operations/StatusBadge";
+import { StatusBadge, PriorityBadge, SeverityBadge, ApprovalBadge, ExceptionLifecycleBadge, BillingReadinessBadge } from "@/components/operations/StatusBadge";
+import { DocumentationChecklist } from "@/components/operations/DocumentationChecklist";
 import { JobStatus, ServiceType } from "@/lib/domain/types";
 import {
   Truck,
@@ -376,11 +377,19 @@ function JobsPageContent() {
                 )}
 
                 <Link
+                  href={`/operations/jobs/${selectedJob.id}/packet`}
+                  target="_blank"
+                  className="px-3 py-1.5 rounded bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#d4af37] font-bold text-xs flex items-center gap-1 transition ml-auto"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Job Packet (Printable)</span>
+                </Link>
+                <Link
                   href="/dock"
                   target="_blank"
-                  className="px-3 py-1.5 rounded bg-[#162b45] hover:bg-[#203a5c] border border-[#233f63] text-slate-200 font-bold text-xs flex items-center gap-1 transition ml-auto"
+                  className="px-3 py-1.5 rounded bg-[#162b45] hover:bg-[#203a5c] border border-[#233f63] text-slate-200 font-bold text-xs flex items-center gap-1 transition"
                 >
-                  <span>Open Active5 Dock Tablet</span>
+                  <span>Active5 Tablet</span>
                   <ExternalLink className="w-3 h-3 text-[#d4af37]" />
                 </Link>
                 <Link
@@ -655,6 +664,29 @@ function JobsPageContent() {
               </div>
             </div>
 
+            {/* Job Documentation Completeness Checklist */}
+            <div className="p-5 rounded-xl bg-[#081525] border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#d4af37]" />
+                  <span className="font-bold text-sm text-white">Documentation Completeness (Billing Audit Gate)</span>
+                </div>
+                <Link
+                  href={`/operations/jobs/${selectedJob.id}/packet`}
+                  target="_blank"
+                  className="text-xs text-[#d4af37] hover:underline font-bold"
+                >
+                  Print Full Job Packet →
+                </Link>
+              </div>
+              <DocumentationChecklist
+                job={selectedJob}
+                pallets={jobPallets}
+                exceptions={jobExceptions}
+                variant="detailed"
+              />
+            </div>
+
             {/* Commercial Breakdown */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-[#0c1c30] to-[#081525] border border-[#233f63] space-y-4">
               <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2.5">
@@ -663,16 +695,14 @@ function JobsPageContent() {
                   <span>Commercial &amp; Billing Reconciliation</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Billing State:</span>
-                  <span className="font-mono text-xs font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    {selectedJob.billingStatus.replace("_", " ")}
-                  </span>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Handoff Readiness:</span>
+                  <BillingReadinessBadge status={selectedJob.billingReadinessStatus ?? "wip"} />
                 </div>
               </div>
 
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-slate-400">
-                  <span>Base Authorized Service ({selectedJob.service}):</span>
+                  <span>Base Quoted Service ({selectedJob.service}):</span>
                   <span className="font-mono text-slate-200 font-semibold">${selectedJob.quoteAmount.toFixed(2)}</span>
                 </div>
 
@@ -702,10 +732,40 @@ function JobsPageContent() {
                   </div>
                 )}
 
+                {/* Storage / Transshipment fee if present */}
+                {(selectedJob.storageAmount ?? 0) > 0 && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Transient Staging Storage:</span>
+                    <span className="font-mono text-slate-200 font-semibold">+${(selectedJob.storageAmount ?? 0).toFixed(2)}</span>
+                  </div>
+                )}
+
+                {/* Commercial Triad Breakdown */}
+                <div className="p-3 rounded-lg bg-[#060d17] border border-slate-800 grid grid-cols-3 gap-2 text-center my-2">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block">Total Authorized</span>
+                    <span className="font-mono text-sm font-bold text-slate-200">
+                      ${(selectedJob.authorizedAmount ?? selectedJob.billableAmount).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block">Work Performed</span>
+                    <span className="font-mono text-sm font-bold text-[#d4af37]">
+                      ${(selectedJob.performedAmount ?? selectedJob.quoteAmount).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase block">Authorized &amp; Performed</span>
+                    <span className="font-mono text-sm font-black text-emerald-400">
+                      ${selectedJob.billableAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Totals Summary */}
                 <div className="pt-2 border-t border-slate-800 space-y-1.5">
                   <div className="flex justify-between items-center text-sm font-bold">
-                    <span className="text-white">Authorized Billable Total:</span>
+                    <span className="text-white">Current Billable Amount:</span>
                     <span className="font-mono text-xl text-emerald-400 font-black">
                       ${selectedJob.billableAmount.toFixed(2)}
                     </span>
@@ -713,7 +773,7 @@ function JobsPageContent() {
 
                   {(selectedJob.pendingAdditions ?? 0) > 0 && (
                     <div className="flex justify-between items-center text-[11px] text-slate-400 pt-0.5">
-                      <span>Projected Total if Change Order Approved:</span>
+                      <span>Projected Total if Pending Change Order Approved:</span>
                       <span className="font-mono text-amber-300 font-bold">
                         ${(selectedJob.projectedAmount ?? (selectedJob.billableAmount + (selectedJob.pendingAdditions ?? 0))).toFixed(2)}
                       </span>

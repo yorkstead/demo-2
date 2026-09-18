@@ -94,7 +94,7 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Facility: 6030 Washington St, Ste 130, Denver CO 80216 • (303) 555-0199
+                Facility: 6030 Washington St, Ste 130, Denver CO 80216 • Simulated Operations Desk
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>256-Bit Encrypted Link</span>
+              <span>Secure Demo Authorization Link</span>
             </div>
             <Link
               href="/operations/command-center"
@@ -337,10 +337,10 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
 
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#d4af37] mb-1">
-                  Prescribed Corrective Scope of Work
+                  Illustrative Corrective Scope of Work (Demo Protocol)
                 </h3>
                 <div className="text-xs text-slate-200 bg-[#060d17] p-3.5 rounded-lg border border-[#142844] space-y-2">
-                  <div className="font-semibold text-slate-100">Standard SOP-04: Full Manual Breakdown & Plumb Rebuild</div>
+                  <div className="font-semibold text-slate-100">Illustrative Rework Protocol (Demo SOP-04): Full Manual Breakdown & Plumb Rebuild</div>
                   <ol className="list-decimal list-inside space-y-1.5 text-slate-300 pl-1">
                     <li>Carefully de-stack 72 cartons of bottled soda to prevent bottle rupture.</li>
                     <li>Discard fractured hardwood runner; provide certified Grade-A GMA exchange pallet.</li>
@@ -350,6 +350,9 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
                     <li>Apply 4 high-tensile polyester bands with metal crimp seals.</li>
                     <li>Verify laser vertical plumbness (<strong className="text-emerald-400">&lt;1° deviation</strong>) prior to staging in Bay ST-03.</li>
                   </ol>
+                  <p className="text-[10px] text-slate-500 italic pt-1 border-t border-slate-800">
+                    *Tolerances, equipment, and materials listed above are representative demo specifications and do not represent verified Denver Express company policy.
+                  </p>
                 </div>
               </div>
             </div>
@@ -800,13 +803,13 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
               <div className="p-3 rounded-lg bg-[#060d17] border border-[#142844] space-y-2">
                 <div className="flex items-center gap-2 text-white font-semibold">
                   <Phone className="w-4 h-4 text-[#d4af37]" />
-                  <span>Immediate Dispatch Desk:</span>
+                  <span>Simulated Dispatch Desk (Demo):</span>
                 </div>
                 <div className="font-mono text-base font-bold text-amber-400 pl-6">
-                  (303) 555-0199
+                  (303) 555-0199 <span className="text-[11px] font-normal text-slate-400">(Demo Hotline)</span>
                 </div>
                 <div className="text-[11px] text-slate-400 pl-6">
-                  Desk lead: Marco S. • Available 24/7 during active shifts
+                  Illustrative terminal dispatch contact for simulation and walkthrough testing.
                 </div>
               </div>
 
@@ -821,7 +824,7 @@ export default function CustomerApprovalPage({ params }: { params: Promise<{ id:
               </div>
 
               <div className="p-3 rounded-lg bg-[#060d17] border border-[#142844] text-[11px] text-slate-400">
-                <strong>Facility Address:</strong> 6030 Washington St, Suite 130, Denver, CO 80216. Dock access via Washington St gate.
+                <strong>Terminal Location:</strong> 6030 Washington St, Suite 130, Denver, CO 80216.
               </div>
             </div>
 

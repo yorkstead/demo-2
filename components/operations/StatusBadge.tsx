@@ -110,3 +110,22 @@ export function ExceptionLifecycleBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+export function BillingReadinessBadge({ status }: { status: string }) {
+  const configs: Record<string, { label: string; bg: string; text: string }> = {
+    wip: { label: "Work In Progress", bg: "bg-blue-500/15 border-blue-500/30", text: "text-blue-300" },
+    awaiting_authorization: { label: "Awaiting Authorization", bg: "bg-rose-500/20 border-rose-500/40 animate-pulse", text: "text-rose-300" },
+    authorized_work_pending: { label: "Authorized / Work Pending", bg: "bg-amber-500/20 border-amber-500/40", text: "text-amber-300" },
+    needs_documentation: { label: "Needs Documentation", bg: "bg-yellow-500/15 border-yellow-500/30", text: "text-yellow-300" },
+    needs_review: { label: "Needs Review", bg: "bg-purple-500/20 border-purple-500/40", text: "text-purple-300" },
+    ready_to_invoice: { label: "Ready to Invoice", bg: "bg-emerald-500/20 border-emerald-500/40", text: "text-emerald-300" },
+    invoiced: { label: "Invoiced", bg: "bg-teal-500/15 border-teal-500/30", text: "text-teal-300" },
+  };
+  const c = configs[status] || { label: status.replace(/_/g, " "), bg: "bg-slate-800 border-slate-700", text: "text-slate-300" };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${c.bg} ${c.text}`}>
+      {c.label}
+    </span>
+  );
+}
+

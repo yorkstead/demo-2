@@ -298,8 +298,16 @@ export class WarehouseStore {
       if (status === "approved") {
         jobUpdates.approvedAdditions = changeAmount;
         jobUpdates.pendingAdditions = 0;
-        jobUpdates.billableAmount = job.quoteAmount + changeAmount;
+        // Commercial model rule:
+        // Quoted / Base: job.quoteAmount ($450)
+        // Authorized: Base + approved additions ($735)
+        // Performed: Still $450 (base work only) until corrective work is completed!
+        // Billable: Performed portion that is authorized ($450)
+        jobUpdates.authorizedAmount = job.quoteAmount + changeAmount;
+        jobUpdates.performedAmount = job.quoteAmount;
+        jobUpdates.billableAmount = job.quoteAmount;
         jobUpdates.projectedAmount = job.quoteAmount + changeAmount;
+        jobUpdates.billingReadinessStatus = "authorized_work_pending";
 
         // Advance timeline
         const timeline = [...(job.timeline || [])];
@@ -498,18 +506,55 @@ export class WarehouseStore {
     }
     this.updatePalletLocation(palletId, targetLocation, operator, "Restack complete, staged for reload");
 
-    // Advance job status
+    // Advance job status & commercial reconciliation
     const job = this.getJobById(ex.jobId);
     if (job) {
       const activeExceptions = this.getExceptions().filter(
         (e) => e.jobId === job.id && e.id !== exceptionId && e.status !== "resolved"
       );
+      const changeAmount = ex.changeOrderAmount ?? ex.additionalCost ?? 0;
+      const newPerformed = (job.performedAmount ?? job.quoteAmount) + changeAmount;
+      const newAuthorized = job.authorizedAmount ?? (job.quoteAmount + changeAmount);
+      const newBillable = Math.min(newPerformed, newAuthorized);
+
+      const jobUpdates: Partial<WarehouseJob> = {
+        performedAmount: newPerformed,
+        billableAmount: newBillable,
+        billingReadinessStatus: "needs_review",
+      };
+
       if (activeExceptions.length === 0) {
-        this.updateJobStatus(job.id, "staged");
+        jobUpdates.status = "staged";
       }
+
+      this.updateJob(job.id, jobUpdates);
     }
 
     return ex;
+  }
+
+  static reviewAndApproveBilling(jobId: string, reviewer: string = "Sarah Lin (Operations Manager)"): WarehouseJob | null {
+    const job = this.getJobById(jobId);
+    if (!job) return null;
+
+    const updated = this.updateJob(jobId, {
+      billingReadinessStatus: "ready_to_invoice",
+      billingStatus: "pending_review",
+    });
+
+    return updated;
+  }
+
+  static markJobInvoiced(jobId: string, invoiceRef?: string): WarehouseJob | null {
+    const job = this.getJobById(jobId);
+    if (!job) return null;
+
+    const updated = this.updateJob(jobId, {
+      billingReadinessStatus: "invoiced",
+      billingStatus: "invoiced",
+    });
+
+    return updated;
   }
 
   static getCustomers(): CustomerAccount[] {
@@ -563,6 +608,8 @@ export function useWarehouseStore() {
     holdFreight: useCallback(WarehouseStore.holdFreight.bind(WarehouseStore), []),
     beginCorrectiveWork: useCallback(WarehouseStore.beginCorrectiveWork.bind(WarehouseStore), []),
     completeCorrectiveWork: useCallback(WarehouseStore.completeCorrectiveWork.bind(WarehouseStore), []),
+    reviewAndApproveBilling: useCallback(WarehouseStore.reviewAndApproveBilling.bind(WarehouseStore), []),
+    markJobInvoiced: useCallback(WarehouseStore.markJobInvoiced.bind(WarehouseStore), []),
     resetToSeed: useCallback(WarehouseStore.resetToSeed.bind(WarehouseStore), []),
   };
 }
