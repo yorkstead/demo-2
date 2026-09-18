@@ -20,6 +20,7 @@ import {
   Wrench,
   RotateCcw,
   ExternalLink,
+  Presentation,
   ChevronRight,
 } from "lucide-react";
 import { useWarehouseStore } from "@/lib/domain/store";
@@ -35,6 +36,14 @@ export function OperationsNav() {
     {
       title: null,
       items: [
+        {
+          label: "Executive Tour",
+          href: "/presentation",
+          icon: Presentation,
+          badge: "For Craig" as string | null,
+          badgeColor: "bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40" as string | undefined,
+          external: false,
+        },
         {
           label: "Command Center",
           href: "/operations/command-center",
