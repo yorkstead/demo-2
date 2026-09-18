@@ -13,10 +13,13 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(flagship?.customer.name).toBe("Rocky Mountain Beverage Co");
     expect(flagship?.trailer).toBe("RMB-5012");
     expect(flagship?.dockDoor).toBe("Door 3");
-    expect(flagship?.palletCount).toBe(6);
+    expect(flagship?.palletCount).toBe(8);
     expect(flagship?.service).toBe("Freight Rescue");
     expect(flagship?.quoteAmount).toBe(450.0);
-    expect(flagship?.billableAmount).toBe(735.0);
+    expect(flagship?.pendingAdditions).toBe(285.0);
+    expect(flagship?.approvedAdditions).toBe(0.0);
+    expect(flagship?.billableAmount).toBe(450.0);
+    expect(flagship?.projectedAmount).toBe(735.0);
 
     // Verify trailer is at Door 3
     const trailer = WarehouseStore.getTrailers().find((t) => t.trailerNumber === "RMB-5012");
@@ -24,9 +27,9 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(trailer?.assignedDoor).toBe("Door 3");
     expect(trailer?.loadStatus).toBe("at_door");
 
-    // Verify 6 pallets exist
+    // Verify 8 pallets exist
     const flagshipPallets = WarehouseStore.getPallets().filter((p) => p.jobId === "DX-260918-037");
-    expect(flagshipPallets.length).toBe(6);
+    expect(flagshipPallets.length).toBe(8);
     expect(flagshipPallets.map((p) => p.id)).toEqual([
       "DX-260918-037-P01",
       "DX-260918-037-P02",
@@ -34,14 +37,18 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
       "DX-260918-037-P04",
       "DX-260918-037-P05",
       "DX-260918-037-P06",
+      "DX-260918-037-P07",
+      "DX-260918-037-P08",
     ]);
 
     // Verify exception EX-1049
     const ex = WarehouseStore.getExceptions().find((e) => e.id === "EX-1049");
     expect(ex).toBeDefined();
     expect(ex?.jobId).toBe("DX-260918-037");
+    expect(ex?.palletId).toBe("DX-260918-037-P08");
     expect(ex?.severity).toBe("critical");
-    expect(ex?.additionalCost).toBe(285.0);
+    expect(ex?.changeOrderAmount).toBe(285.0);
+    expect(ex?.status).toBe("awaiting_customer");
   });
 
   it("reconciles assignDockDoor across job, trailer, and location occupancy", () => {
@@ -105,5 +112,68 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(job?.status).toBe("completed");
     expect(job?.billingStatus).toBe("invoiced");
     expect(job?.completedAt).toBeDefined();
+  });
+
+  it("handles customer view, change order approval, and corrective rebuild workflow", () => {
+    // 1. Customer views the authorization page
+    const viewedEx = WarehouseStore.recordCustomerView("EX-1049", "Tom Bradley (Broker Authorized)");
+    expect(viewedEx?.customerViewedTime).toBeDefined();
+    const viewEntry = viewedEx?.auditHistory.find((a) => a.action === "VIEWED");
+    expect(viewEntry).toBeDefined();
+
+    // 2. Customer approves change order for $285
+    const approvedEx = WarehouseStore.approveChangeOrder("EX-1049", "Tom Bradley", "tbradley@rockymountainbev.com");
+    expect(approvedEx?.status).toBe("approved");
+    expect(approvedEx?.approvalStatus).toBe("approved");
+    expect(approvedEx?.approvedBy).toBe("Tom Bradley");
+    expect(approvedEx?.approverContact).toBe("tbradley@rockymountainbev.com");
+
+    const jobAfterApproval = WarehouseStore.getJobById("DX-260918-037");
+    expect(jobAfterApproval?.quoteAmount).toBe(450.0);
+    expect(jobAfterApproval?.approvedAdditions).toBe(285.0);
+    expect(jobAfterApproval?.pendingAdditions).toBe(0.0);
+    expect(jobAfterApproval?.billableAmount).toBe(735.0);
+    expect(jobAfterApproval?.projectedAmount).toBe(735.0);
+    expect(jobAfterApproval?.status).toBe("in_progress");
+
+    // 3. Operator starts corrective work on Bay RW-01
+    const inProgressEx = WarehouseStore.beginCorrectiveWork("EX-1049", "Dave M. (FL-02)");
+    expect(inProgressEx?.status).toBe("in_progress");
+    const begEntry = inProgressEx?.auditHistory.find((a) => a.action === "WORK_BEGUN");
+    expect(begEntry).toBeDefined();
+
+    // 4. Operator completes corrective work and moves P08 to ST-03
+    const completedEx = WarehouseStore.completeCorrectiveWork("EX-1049", "Dave M. (FL-02)", "ST-03");
+    expect(completedEx?.status).toBe("resolved");
+    expect(completedEx?.resolutionState).toBe("completed");
+    expect(completedEx?.resolvedAt).toBeDefined();
+
+    // Check pallet P08 condition and location
+    const p08 = WarehouseStore.getPalletById("DX-260918-037-P08");
+    expect(p08?.condition).toBe("restacked");
+    expect(p08?.currentLocation).toBe("ST-03");
+
+    // Check location occupancy updated
+    const st03 = WarehouseStore.getLocations().find((l) => l.id === "ST-03");
+    expect(st03?.currentPalletIds.includes("DX-260918-037-P08")).toBe(true);
+    const rw01 = WarehouseStore.getLocations().find((l) => l.id === "RW-01");
+    expect(rw01?.currentPalletIds.includes("DX-260918-037-P08")).toBe(false);
+
+    // Check job state advanced to staged
+    const finalJob = WarehouseStore.getJobById("DX-260918-037");
+    expect(finalJob?.status).toBe("staged");
+  });
+
+  it("handles freight hold when customer declines change order", () => {
+    const heldEx = WarehouseStore.holdFreight("EX-1049", "Shipper requests repack at destination instead");
+    expect(heldEx?.status).toBe("declined");
+    expect(heldEx?.resolutionState).toBe("held");
+    expect(heldEx?.approvalStatus).toBe("rejected");
+
+    const job = WarehouseStore.getJobById("DX-260918-037");
+    expect(job?.status).toBe("waiting");
+    expect(job?.pendingAdditions).toBe(0.0);
+    expect(job?.billableAmount).toBe(450.0);
+    expect(job?.projectedAmount).toBe(450.0);
   });
 });

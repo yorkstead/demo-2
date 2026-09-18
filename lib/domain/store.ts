@@ -48,13 +48,16 @@ export class WarehouseStore {
 
   private static getStored<T>(key: string, fallback: T): T {
     if (typeof window === "undefined") {
-      return this.memoryStore[key] !== undefined ? this.memoryStore[key] : fallback;
+      if (this.memoryStore[key] !== undefined) {
+        return JSON.parse(JSON.stringify(this.memoryStore[key]));
+      }
+      return JSON.parse(JSON.stringify(fallback));
     }
     try {
       const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : fallback;
+      return item ? JSON.parse(item) : JSON.parse(JSON.stringify(fallback));
     } catch {
-      return fallback;
+      return JSON.parse(JSON.stringify(fallback));
     }
   }
 
@@ -238,34 +241,274 @@ export class WarehouseStore {
     return this.getStored(STORAGE_KEYS.EXCEPTIONS, INITIAL_EXCEPTIONS);
   }
 
-  static updateExceptionApproval(exceptionId: string, status: ApprovalStatus, approvedBy: string): OperationalException | null {
+  static updateExceptionApproval(
+    exceptionId: string,
+    status: ApprovalStatus,
+    approvedBy: string,
+    approverContact?: string
+  ): OperationalException | null {
     const exceptions = this.getExceptions();
     const idx = exceptions.findIndex((e) => e.id === exceptionId);
     if (idx === -1) return null;
     const ex = exceptions[idx];
+    const prevStatus = ex.status;
+    const nowIso = new Date().toISOString();
+
     ex.approvalStatus = status;
     ex.approvedBy = approvedBy;
-    ex.approvedAt = new Date().toISOString();
+    ex.approvedAt = nowIso;
+    if (approverContact) ex.approverContact = approverContact;
+    ex.approvalDecisionTime = nowIso;
+
+    if (status === "approved") {
+      ex.status = "approved";
+      ex.auditHistory = [
+        ...(ex.auditHistory || []),
+        {
+          id: "AUD-" + Date.now().toString() + "-APP",
+          timestamp: nowIso,
+          actor: approvedBy,
+          action: "APPROVED",
+          notes: `Change order approved for $${(ex.changeOrderAmount ?? ex.additionalCost).toFixed(2)}. Authorized by ${approvedBy}${approverContact ? ` (${approverContact})` : ""}.`,
+        },
+      ];
+    } else if (status === "rejected") {
+      ex.status = "declined";
+      ex.auditHistory = [
+        ...(ex.auditHistory || []),
+        {
+          id: "AUD-" + Date.now().toString() + "-DEC",
+          timestamp: nowIso,
+          actor: approvedBy,
+          action: "DECLINED",
+          notes: `Change order declined. Freight placed on hold pending shipper instructions.`,
+        },
+      ];
+    }
+
     exceptions[idx] = ex;
     this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
 
-    // If approved, advance job status from awaiting_approval to in_progress and complete timeline stage
-    if (status === "approved") {
-      const job = this.getJobById(ex.jobId);
-      if (job) {
+    // Reconcile job commercial state
+    const job = this.getJobById(ex.jobId);
+    if (job) {
+      const changeAmount = ex.changeOrderAmount ?? ex.additionalCost ?? 0;
+      const jobUpdates: Partial<WarehouseJob> = {};
+
+      if (status === "approved") {
+        jobUpdates.approvedAdditions = changeAmount;
+        jobUpdates.pendingAdditions = 0;
+        jobUpdates.billableAmount = job.quoteAmount + changeAmount;
+        jobUpdates.projectedAmount = job.quoteAmount + changeAmount;
+
+        // Advance timeline
         const timeline = [...(job.timeline || [])];
         timeline.forEach((t) => {
           if (t.stage.toLowerCase().includes("awaiting approval") || t.stage.toLowerCase().includes("hold")) {
             t.completed = true;
             t.current = false;
           }
+          if (t.stage.toLowerCase().includes("rework")) {
+            t.current = true;
+          }
         });
-        this.updateJob(job.id, { timeline });
+        jobUpdates.timeline = timeline;
+
         if (job.status === "awaiting_approval") {
-          this.updateJobStatus(job.id, "in_progress");
+          jobUpdates.status = "in_progress";
         }
+      } else if (status === "rejected") {
+        jobUpdates.pendingAdditions = 0;
+        jobUpdates.projectedAmount = job.billableAmount;
+        jobUpdates.status = "waiting";
+      }
+
+      this.updateJob(job.id, jobUpdates);
+    }
+
+    return ex;
+  }
+
+  static requestCustomerApproval(exceptionId: string, requestedBy: string = "Dispatch"): OperationalException | null {
+    const exceptions = this.getExceptions();
+    const idx = exceptions.findIndex((e) => e.id === exceptionId);
+    if (idx === -1) return null;
+    const ex = exceptions[idx];
+    const nowIso = new Date().toISOString();
+
+    ex.status = "awaiting_customer";
+    ex.approvalRequestedTime = nowIso;
+    ex.auditHistory = [
+      ...(ex.auditHistory || []),
+      {
+        id: "AUD-" + Date.now().toString() + "-REQ",
+        timestamp: nowIso,
+        actor: requestedBy,
+        action: "APPROVAL_REQUESTED",
+        notes: `Customer approval requested for change order $${(ex.changeOrderAmount ?? ex.additionalCost).toFixed(2)}. Digital work order link dispatched.`,
+      },
+    ];
+
+    exceptions[idx] = ex;
+    this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
+
+    const job = this.getJobById(ex.jobId);
+    if (job && job.status !== "awaiting_approval") {
+      this.updateJobStatus(job.id, "awaiting_approval");
+    }
+
+    return ex;
+  }
+
+  static recordCustomerView(exceptionId: string, viewer: string = "Tom Bradley (Rocky Mountain Beverage Co)"): OperationalException | null {
+    const exceptions = this.getExceptions();
+    const idx = exceptions.findIndex((e) => e.id === exceptionId);
+    if (idx === -1) return null;
+    const ex = exceptions[idx];
+
+    // Idempotent: don't record duplicate view events if already viewed
+    if (ex.customerViewedTime) return ex;
+
+    const nowIso = new Date().toISOString();
+    ex.customerViewedTime = nowIso;
+    ex.auditHistory = [
+      ...(ex.auditHistory || []),
+      {
+        id: "AUD-" + Date.now().toString() + "-VIEW",
+        timestamp: nowIso,
+        actor: viewer,
+        action: "VIEWED",
+        notes: "Customer opened digital work authorization and inspected photographic defect evidence.",
+      },
+    ];
+
+    exceptions[idx] = ex;
+    this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
+    return ex;
+  }
+
+  static approveChangeOrder(
+    exceptionId: string,
+    approverName: string = "Tom Bradley",
+    approverContact: string = "tbradley@rockymountainbev.com"
+  ): OperationalException | null {
+    return this.updateExceptionApproval(exceptionId, "approved", approverName, approverContact);
+  }
+
+  static holdFreight(exceptionId: string, notes: string = "Customer requested hold pending packaging decision."): OperationalException | null {
+    const exceptions = this.getExceptions();
+    const idx = exceptions.findIndex((e) => e.id === exceptionId);
+    if (idx === -1) return null;
+    const ex = exceptions[idx];
+    const nowIso = new Date().toISOString();
+
+    ex.status = "declined";
+    ex.resolutionState = "held";
+    ex.approvalStatus = "rejected";
+    ex.auditHistory = [
+      ...(ex.auditHistory || []),
+      {
+        id: "AUD-" + Date.now().toString() + "-HOLD",
+        timestamp: nowIso,
+        actor: "Customer Portal",
+        action: "HOLD_REQUESTED",
+        notes,
+      },
+    ];
+
+    exceptions[idx] = ex;
+    this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
+
+    const job = this.getJobById(ex.jobId);
+    if (job) {
+      this.updateJob(job.id, {
+        status: "waiting",
+        pendingAdditions: 0,
+        projectedAmount: job.billableAmount,
+      });
+    }
+    return ex;
+  }
+
+  static beginCorrectiveWork(exceptionId: string, operator: string = "Dave M. (FL-02)"): OperationalException | null {
+    const exceptions = this.getExceptions();
+    const idx = exceptions.findIndex((e) => e.id === exceptionId);
+    if (idx === -1) return null;
+    const ex = exceptions[idx];
+    const nowIso = new Date().toISOString();
+
+    ex.status = "in_progress";
+    ex.auditHistory = [
+      ...(ex.auditHistory || []),
+      {
+        id: "AUD-" + Date.now().toString() + "-BEG",
+        timestamp: nowIso,
+        actor: operator,
+        action: "WORK_BEGUN",
+        notes: `Corrective rebuild started in Bay RW-01. Breakdown, re-palletizing, and restrapping underway for pallet ${ex.palletId || "P08"}.`,
+      },
+    ];
+
+    exceptions[idx] = ex;
+    this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
+
+    const job = this.getJobById(ex.jobId);
+    if (job && job.status !== "in_progress") {
+      this.updateJobStatus(job.id, "in_progress");
+    }
+    return ex;
+  }
+
+  static completeCorrectiveWork(
+    exceptionId: string,
+    operator: string = "Dave M. (FL-02)",
+    targetLocation: string = "ST-03"
+  ): OperationalException | null {
+    const exceptions = this.getExceptions();
+    const idx = exceptions.findIndex((e) => e.id === exceptionId);
+    if (idx === -1) return null;
+    const ex = exceptions[idx];
+    const nowIso = new Date().toISOString();
+
+    ex.status = "resolved";
+    ex.resolvedAt = nowIso;
+    ex.resolutionState = "completed";
+    ex.auditHistory = [
+      ...(ex.auditHistory || []),
+      {
+        id: "AUD-" + Date.now().toString() + "-COMP",
+        timestamp: nowIso,
+        actor: operator,
+        action: "WORK_COMPLETED",
+        notes: `Pallet ${ex.palletId || "P08"} restacked, banded with 4 heavy-duty poly straps, and shrink-wrapped. QA plumb check passed (<1° lean). Relocated to ${targetLocation}.`,
+      },
+    ];
+
+    exceptions[idx] = ex;
+    this.setStored(STORAGE_KEYS.EXCEPTIONS, exceptions);
+
+    // Update pallet condition and location
+    const palletId = ex.palletId || "DX-260918-037-P08";
+    const pallets = this.getPallets();
+    const pIdx = pallets.findIndex((p) => p.id === palletId);
+    if (pIdx !== -1) {
+      pallets[pIdx].condition = "restacked";
+      pallets[pIdx].notes = "Restacked and plumbed. 4 poly bands + 80 gauge stretch wrap applied. QA inspection passed.";
+      this.setStored(STORAGE_KEYS.PALLETS, pallets);
+    }
+    this.updatePalletLocation(palletId, targetLocation, operator, "Restack complete, staged for reload");
+
+    // Advance job status
+    const job = this.getJobById(ex.jobId);
+    if (job) {
+      const activeExceptions = this.getExceptions().filter(
+        (e) => e.jobId === job.id && e.id !== exceptionId && e.status !== "resolved"
+      );
+      if (activeExceptions.length === 0) {
+        this.updateJobStatus(job.id, "staged");
       }
     }
+
     return ex;
   }
 
@@ -314,6 +557,12 @@ export function useWarehouseStore() {
     assignDockDoor: useCallback(WarehouseStore.assignDockDoor.bind(WarehouseStore), []),
     updatePalletLocation: useCallback(WarehouseStore.updatePalletLocation.bind(WarehouseStore), []),
     updateExceptionApproval: useCallback(WarehouseStore.updateExceptionApproval.bind(WarehouseStore), []),
+    requestCustomerApproval: useCallback(WarehouseStore.requestCustomerApproval.bind(WarehouseStore), []),
+    recordCustomerView: useCallback(WarehouseStore.recordCustomerView.bind(WarehouseStore), []),
+    approveChangeOrder: useCallback(WarehouseStore.approveChangeOrder.bind(WarehouseStore), []),
+    holdFreight: useCallback(WarehouseStore.holdFreight.bind(WarehouseStore), []),
+    beginCorrectiveWork: useCallback(WarehouseStore.beginCorrectiveWork.bind(WarehouseStore), []),
+    completeCorrectiveWork: useCallback(WarehouseStore.completeCorrectiveWork.bind(WarehouseStore), []),
     resetToSeed: useCallback(WarehouseStore.resetToSeed.bind(WarehouseStore), []),
   };
 }

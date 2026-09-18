@@ -85,10 +85,28 @@ export function ApprovalBadge({ status }: { status: ApprovalStatus }) {
     return <span className="text-emerald-400 font-bold text-xs bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">Approved</span>;
   }
   if (status === "pending") {
-    return <span className="text-rose-400 font-bold text-xs bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded animate-pulse">Awaiting Sign-off</span>;
+    return <span className="text-rose-400 font-bold text-xs bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded animate-pulse">Awaiting Customer</span>;
   }
   if (status === "waived") {
     return <span className="text-slate-400 font-medium text-xs bg-slate-800 border border-slate-700 px-2 py-0.5 rounded">Waived</span>;
   }
-  return <span className="text-red-400 font-medium text-xs bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">Declined</span>;
+  return <span className="text-red-400 font-medium text-xs bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">Declined / Hold</span>;
+}
+
+export function ExceptionLifecycleBadge({ status }: { status: string }) {
+  const configs: Record<string, { label: string; bg: string; text: string }> = {
+    new: { label: "New", bg: "bg-blue-500/15 border-blue-500/30", text: "text-blue-300" },
+    investigating: { label: "Investigating", bg: "bg-indigo-500/15 border-indigo-500/30", text: "text-indigo-300" },
+    awaiting_customer: { label: "Awaiting Customer", bg: "bg-rose-500/20 border-rose-500/40 animate-pulse", text: "text-rose-300" },
+    approved: { label: "Customer Approved", bg: "bg-emerald-500/20 border-emerald-500/40", text: "text-emerald-300" },
+    in_progress: { label: "Corrective Work Active", bg: "bg-amber-500/20 border-amber-500/40", text: "text-amber-300" },
+    resolved: { label: "Resolved", bg: "bg-teal-500/15 border-teal-500/30", text: "text-teal-300" },
+    declined: { label: "Held / Declined", bg: "bg-slate-800 border-slate-700", text: "text-slate-400" },
+  };
+  const c = configs[status] || { label: status.replace(/_/g, " "), bg: "bg-slate-800 border-slate-700", text: "text-slate-300" };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${c.bg} ${c.text}`}>
+      {c.label}
+    </span>
+  );
 }

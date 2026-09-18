@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useWarehouseStore } from "@/lib/domain/store";
-import { StatusBadge, PriorityBadge, SeverityBadge, ApprovalBadge } from "@/components/operations/StatusBadge";
+import { StatusBadge, PriorityBadge, SeverityBadge, ApprovalBadge, ExceptionLifecycleBadge } from "@/components/operations/StatusBadge";
 import { JobStatus, ServiceType } from "@/lib/domain/types";
 import {
   Truck,
@@ -27,10 +27,25 @@ import {
   MoveRight,
   Check,
   Camera,
+  PlayCircle,
+  CheckCheck,
 } from "lucide-react";
 
 function JobsPageContent() {
-  const { jobs, pallets, exceptions, locations, assignDockDoor, updateJobStatus, updatePalletLocation, updateExceptionApproval } = useWarehouseStore();
+  const {
+    jobs,
+    pallets,
+    exceptions,
+    locations,
+    assignDockDoor,
+    updateJobStatus,
+    updatePalletLocation,
+    updateExceptionApproval,
+    approveChangeOrder,
+    holdFreight,
+    beginCorrectiveWork,
+    completeCorrectiveWork,
+  } = useWarehouseStore();
   const searchParams = useSearchParams();
   const queryJobId = searchParams.get("job");
 
@@ -382,59 +397,135 @@ function JobsPageContent() {
             {/* Exception & Customer Approval Alert if Present */}
             {jobExceptions.length > 0 && (
               <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-400" />
-                  <span>Defect &amp; Customer Authorization Triage</span>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    <span>Defect &amp; Customer Authorization Triage</span>
+                  </div>
+                  <Link
+                    href="/operations/customers/approvals"
+                    className="text-xs text-[#d4af37] hover:underline font-semibold"
+                  >
+                    Approvals Queue →
+                  </Link>
                 </div>
 
-                {jobExceptions.map((ex) => (
-                  <div key={ex.id} className="p-4 rounded-lg bg-rose-950/20 border border-rose-500/40 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-rose-400">{ex.id}</span>
-                        <SeverityBadge severity={ex.severity} />
-                        <span className="text-xs font-bold text-white">{ex.title}</span>
-                      </div>
-                      <ApprovalBadge status={ex.approvalStatus} />
-                    </div>
+                {jobExceptions.map((ex) => {
+                  const changeAmount = ex.changeOrderAmount ?? ex.additionalCost ?? 0;
+                  const isAwaiting = ex.status === "awaiting_customer";
+                  const isApproved = ex.status === "approved";
+                  const isInProgress = ex.status === "in_progress";
+                  const isResolved = ex.status === "resolved";
+                  const isHeld = ex.status === "declined" || ex.resolutionState === "held";
 
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {ex.description}
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-rose-500/20">
-                      <div className="text-xs text-slate-300">
-                        Proposed Remedy: <span className="text-[#d4af37] font-semibold">{ex.resolutionNotes}</span>
-                      </div>
-                      <div className="font-mono text-sm font-bold text-emerald-400">
-                        Quote Addition: +${(ex.additionalCost || 0).toFixed(2)}
-                      </div>
-                    </div>
-
-                    {ex.approvalStatus === "pending" ? (
-                      <div className="pt-2 flex items-center gap-3">
-                        <button
-                          onClick={() => updateExceptionApproval(ex.id, "approved", "Tom Bradley (Broker Authorized)")}
-                          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md"
+                  return (
+                    <div
+                      key={ex.id}
+                      className={`p-4 rounded-lg space-y-3 transition border ${
+                        isAwaiting
+                          ? "bg-rose-950/20 border-rose-500/40"
+                          : isApproved
+                          ? "bg-emerald-950/20 border-emerald-500/40"
+                          : isInProgress
+                          ? "bg-amber-950/20 border-amber-500/40"
+                          : "bg-[#081525] border-slate-800"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-white">{ex.id}</span>
+                          <SeverityBadge severity={ex.severity} />
+                          <ExceptionLifecycleBadge status={ex.status} />
+                          {ex.palletId && (
+                            <span className="font-mono text-xs text-amber-300 font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700">
+                              {ex.palletId}
+                            </span>
+                          )}
+                        </div>
+                        <Link
+                          href={`/approval/${ex.id}`}
+                          target="_blank"
+                          className="text-xs text-[#d4af37] hover:text-amber-300 font-bold flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Authorize Quote (+$285.00) &amp; Resume Rework</span>
-                        </button>
-                        <button
-                          onClick={() => updateExceptionApproval(ex.id, "rejected", "Customer Service")}
-                          className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 font-semibold text-xs transition"
-                        >
-                          Decline / Keep on Hold
-                        </button>
+                          <span>Customer Portal View</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
                       </div>
-                    ) : (
-                      <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
-                        <CheckCircle className="w-4 h-4 text-emerald-400" />
-                        <span>Authorized by {ex.approvedBy || "Customer"} — Quote addition applied to billable total.</span>
+
+                      <div>
+                        <div className="text-xs font-bold text-white">{ex.title}</div>
+                        <p className="text-xs text-slate-300 leading-relaxed mt-1">
+                          {ex.description}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+                        <div className="text-slate-300">
+                          Prescribed SOP: <span className="text-[#d4af37] font-semibold">{ex.recommendedAction || ex.resolutionNotes}</span>
+                        </div>
+                        <div className="font-mono font-bold text-amber-400 shrink-0">
+                          Change Order: +${changeAmount.toFixed(2)}
+                        </div>
+                      </div>
+
+                      {/* Interactive Operator Lifecycle Controls */}
+                      <div className="pt-2 border-t border-slate-800">
+                        {isAwaiting ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => approveChangeOrder(ex.id, "Tom Bradley (Broker Authorized)", "tbradley@rockymountainbev.com")}
+                              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow cursor-pointer"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>Authorize Change Order (+$285.00)</span>
+                            </button>
+                            <button
+                              onClick={() => holdFreight(ex.id, "Shipper requests quarantine hold")}
+                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 font-semibold text-xs transition cursor-pointer"
+                            >
+                              Decline / Place on Hold
+                            </button>
+                          </div>
+                        ) : isApproved ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-950/40 p-2.5 rounded border border-emerald-500/30">
+                            <div className="text-xs text-emerald-300">
+                              ✓ Authorized by <strong className="text-white">{ex.approvedBy || "Customer"}</strong>. Ready for corrective labor.
+                            </div>
+                            <button
+                              onClick={() => beginCorrectiveWork(ex.id, "Dave M. (FL-02)")}
+                              className="px-3.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow shrink-0 cursor-pointer"
+                            >
+                              <PlayCircle className="w-3.5 h-3.5" />
+                              <span>Begin Corrective Work (Bay RW-01) →</span>
+                            </button>
+                          </div>
+                        ) : isInProgress ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-950/40 p-2.5 rounded border border-amber-500/30">
+                            <div className="text-xs text-amber-300">
+                              ⚙ Rebuild active in <strong className="text-white">Bay RW-01</strong> by Dave M.
+                            </div>
+                            <button
+                              onClick={() => completeCorrectiveWork(ex.id, "Dave M. (FL-02)", "ST-03")}
+                              className="px-3.5 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow shrink-0 cursor-pointer"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>Complete Rebuild &amp; Plumb Check → Stage in ST-03</span>
+                            </button>
+                          </div>
+                        ) : isResolved ? (
+                          <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span>Corrective rebuild complete. Pallet P08 restacked, banded, and staged in Bay ST-03.</span>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+                            Freight on Quarantine Hold in Bay RW-01 buffer.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -565,33 +656,69 @@ function JobsPageContent() {
             </div>
 
             {/* Commercial Breakdown */}
-            <div className="p-4 rounded-lg bg-gradient-to-br from-[#0c1c30] to-[#081525] border border-[#233f63] space-y-3">
-              <div className="flex items-center justify-between text-xs">
+            <div className="p-5 rounded-xl bg-gradient-to-br from-[#0c1c30] to-[#081525] border border-[#233f63] space-y-4">
+              <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2.5">
                 <span className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <DollarSign className="w-4 h-4 text-emerald-400" />
                   <span>Commercial &amp; Billing Reconciliation</span>
                 </span>
-                <span className="font-mono text-xs font-bold text-emerald-400 uppercase">
-                  {selectedJob.billingStatus.replace("_", " ")}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Billing State:</span>
+                  <span className="font-mono text-xs font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    {selectedJob.billingStatus.replace("_", " ")}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-1.5 text-xs">
+              <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-slate-400">
-                  <span>Base Quoted Service ({selectedJob.service}):</span>
-                  <span className="font-mono text-slate-200">${selectedJob.quoteAmount.toFixed(2)}</span>
+                  <span>Base Authorized Service ({selectedJob.service}):</span>
+                  <span className="font-mono text-slate-200 font-semibold">${selectedJob.quoteAmount.toFixed(2)}</span>
                 </div>
-                {selectedJob.billableAmount > selectedJob.quoteAmount && (
-                  <div className="flex justify-between text-rose-300">
-                    <span>Approved Exception Addition (Floyd Hill Shift Restack):</span>
-                    <span className="font-mono font-bold">+${(selectedJob.billableAmount - selectedJob.quoteAmount).toFixed(2)}</span>
+
+                {/* Pending Change Order Row */}
+                {(selectedJob.pendingAdditions ?? 0) > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded bg-amber-950/30 border border-amber-500/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-300 font-medium">Pending Change Order (EX-1049):</span>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                        Awaiting Customer Authorization
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-amber-300">+${(selectedJob.pendingAdditions ?? 0).toFixed(2)}</span>
                   </div>
                 )}
-                <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm">
-                  <span className="text-white">Total Gross Billable:</span>
-                  <span className="font-mono text-lg text-emerald-400">
-                    ${selectedJob.billableAmount.toFixed(2)}
-                  </span>
+
+                {/* Approved Change Order Row */}
+                {(selectedJob.approvedAdditions ?? 0) > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded bg-emerald-950/30 border border-emerald-500/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-300 font-medium">Approved Addition (EX-1049 Rebuild):</span>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Authorized by Customer
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-300">+${(selectedJob.approvedAdditions ?? 0).toFixed(2)}</span>
+                  </div>
+                )}
+
+                {/* Totals Summary */}
+                <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                  <div className="flex justify-between items-center text-sm font-bold">
+                    <span className="text-white">Authorized Billable Total:</span>
+                    <span className="font-mono text-xl text-emerald-400 font-black">
+                      ${selectedJob.billableAmount.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {(selectedJob.pendingAdditions ?? 0) > 0 && (
+                    <div className="flex justify-between items-center text-[11px] text-slate-400 pt-0.5">
+                      <span>Projected Total if Change Order Approved:</span>
+                      <span className="font-mono text-amber-300 font-bold">
+                        ${(selectedJob.projectedAmount ?? (selectedJob.billableAmount + (selectedJob.pendingAdditions ?? 0))).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

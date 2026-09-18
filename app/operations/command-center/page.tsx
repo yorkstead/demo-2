@@ -145,27 +145,68 @@ export default function CommandCenterPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Action 1: Flagship exception */}
-          <Link
-            href="/operations/jobs?job=DX-260918-037"
-            className="p-3 rounded-lg bg-[#060d17]/80 hover:bg-[#122238] border border-rose-500/40 hover:border-rose-400 transition flex flex-col justify-between group"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-rose-400">DX-260918-037</span>
-                <span className="text-[10px] uppercase font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded">
-                  Approval Pending
-                </span>
-              </div>
-              <div className="font-bold text-xs text-white mt-1.5">Rocky Mountain Beverage Co</div>
-              <p className="text-[11px] text-slate-300 mt-1 line-clamp-2">
-                Pallets 1 &amp; 2 leaned &gt;15° after I-70 Floyd Hill descent. +$285 quote addition awaiting customer sign-off.
-              </p>
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-[#d4af37] font-semibold group-hover:underline">
-              <span>Review &amp; Authorize Quote</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </div>
-          </Link>
+          {(() => {
+            const ex1049 = exceptions.find((e) => e.id === "EX-1049");
+            const isApproved = ex1049?.status === "approved";
+            const isInProgress = ex1049?.status === "in_progress";
+            const isResolved = ex1049?.status === "resolved";
+
+            return (
+              <Link
+                href={isApproved || isInProgress ? "/operations/jobs?job=DX-260918-037" : "/approval/EX-1049"}
+                className={`p-3 rounded-lg bg-[#060d17]/80 hover:bg-[#122238] border transition flex flex-col justify-between group ${
+                  isApproved
+                    ? "border-emerald-500/40 hover:border-emerald-400"
+                    : isInProgress
+                    ? "border-amber-500/40 hover:border-amber-400"
+                    : isResolved
+                    ? "border-emerald-500/30"
+                    : "border-rose-500/40 hover:border-rose-400"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-mono text-xs font-bold ${isApproved || isResolved ? "text-emerald-400" : isInProgress ? "text-amber-400" : "text-rose-400"}`}>
+                      DX-260918-037
+                    </span>
+                    <span
+                      className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                        isApproved
+                          ? "text-emerald-300 bg-emerald-500/20"
+                          : isInProgress
+                          ? "text-amber-300 bg-amber-500/20"
+                          : isResolved
+                          ? "text-emerald-300 bg-emerald-500/20"
+                          : "text-rose-300 bg-rose-500/20"
+                      }`}
+                    >
+                      {isApproved
+                        ? "Authorized (+$285)"
+                        : isInProgress
+                        ? "Rework Active (RW-01)"
+                        : isResolved
+                        ? "Rework Complete"
+                        : "Approval Pending"}
+                    </span>
+                  </div>
+                  <div className="font-bold text-xs text-white mt-1.5">Rocky Mountain Beverage Co</div>
+                  <p className="text-[11px] text-slate-300 mt-1 line-clamp-2">
+                    {isApproved
+                      ? "Change order authorized for $285. Rebuild queued for warehouse techs in Bay RW-01."
+                      : isInProgress
+                      ? "Technician Dave M. rebuilding Pallet P08 with Grade-A GMA exchange pallet in Bay RW-01."
+                      : isResolved
+                      ? "Pallet P08 restack & plumb laser inspection passed (<1°). Relocated to Bay ST-03."
+                      : "Pallet P08 leaned >15° after I-70 Floyd Hill descent. +$285 change order awaiting customer sign-off."}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-[#d4af37] font-semibold group-hover:underline">
+                  <span>{isApproved ? "Begin Corrective Work →" : isInProgress ? "Inspect Bay RW-01 →" : "Open Customer Approval Link"}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+              </Link>
+            );
+          })()}
 
           {/* Action 2: Yard Dwell Alert */}
           <Link

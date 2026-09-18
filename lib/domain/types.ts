@@ -75,6 +75,24 @@ export type ExceptionSeverity = "low" | "medium" | "high" | "critical";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "waived";
 
+export type ExceptionLifecycleStatus =
+  | "new"
+  | "investigating"
+  | "awaiting_customer"
+  | "approved"
+  | "in_progress"
+  | "resolved"
+  | "declined";
+
+export interface ExceptionAuditEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  actor: string;
+  details?: string;
+  notes?: string;
+}
+
 export interface PalletMovement {
   id: string;
   palletId: string;
@@ -102,6 +120,7 @@ export interface FreightUnit {
   cartonCount?: number;
   photos: string[];
   movementHistory: PalletMovement[];
+  notes?: string;
 }
 
 export interface WarehouseLocation {
@@ -137,19 +156,38 @@ export interface YardTrailer {
 export interface OperationalException {
   id: string; // e.g. "EX-1049"
   jobId: string;
-  palletId?: string;
+  palletId?: string; // e.g. "DX-260918-037-P08"
   type: ExceptionType;
   severity: ExceptionSeverity;
+  status: ExceptionLifecycleStatus;
   title: string;
   description: string;
-  reportedAt: string;
-  reportedBy: string;
+  discoveredTime: string;
+  discoveredBy: string;
+  location: string;
+  photos: string[];
+  recommendedAction: string;
+  originalScopeCoverage: string;
+  changeOrderAmount: number;
+  approvalState: ApprovalStatus;
+  approvalRequestedTime?: string;
+  customerViewedTime?: string;
+  approvedAt?: string;
+  approvalDecisionTime?: string;
+  approvedBy?: string;
+  approverContact?: string;
+  approverDecision?: "approved" | "held" | "rejected";
+  resolutionState: "pending" | "in_progress" | "resolved" | "completed" | "held";
+  resolvedTime?: string;
+  resolvedAt?: string;
+  auditHistory: ExceptionAuditEntry[];
+
+  // Compatibility fields
   customerApprovalRequired: boolean;
   approvalStatus: ApprovalStatus;
-  approvedBy?: string;
-  approvedAt?: string;
   additionalCost?: number;
-  photos: string[];
+  reportedAt: string;
+  reportedBy: string;
   resolutionNotes?: string;
 }
 
@@ -207,9 +245,11 @@ export interface WarehouseJob {
     wrapRollsUsed: number;
     cornerBoardsUsed: number;
   };
-  quoteAmount: number;
-  approvedAdditions: number;
-  billableAmount: number;
+  quoteAmount: number; // Base authorized work
+  pendingAdditions?: number; // Pending change orders awaiting customer approval
+  approvedAdditions?: number; // Customer authorized additions
+  billableAmount: number; // Authorized billable total (quoteAmount + approvedAdditions)
+  projectedAmount?: number; // Projected total if pending approved (quoteAmount + pendingAdditions + approvedAdditions)
   billingStatus: "unbilled" | "pending_review" | "invoiced" | "paid";
   notes: string;
   photos: {
