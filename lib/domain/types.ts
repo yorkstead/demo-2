@@ -336,3 +336,46 @@ export interface RateCardItem {
   rushMultiplier: number;
   notes?: string;
 }
+
+export type CapitalAssetType =
+  | "electric_forklift"
+  | "standup_forklift"
+  | "pallet_jack"
+  | "stretch_wrapper"
+  | "axle_scale";
+
+export type CapitalAssetStatus =
+  | "available"
+  | "in_use"
+  | "charging"
+  | "maintenance_due"
+  | "out_of_service";
+
+export interface CapitalAsset {
+  id: string; // e.g. "FL-01"
+  name: string; // e.g. "Yale ERP050 5,000 lb Cushion Electric Forklift"
+  category: CapitalAssetType;
+  status: CapitalAssetStatus;
+  currentArea: string; // e.g. "RW-01", "D-03", "Charging Bay 1"
+  currentJobId?: string; // e.g. "DX-260918-037"
+  assignedOperator?: string; // e.g. "Marco S. (Lead Dock Tech)"
+  batteryPercent?: number; // e.g. 84 or null for A/C
+  meterHours: number; // e.g. 3221
+  nextServiceHours: number; // e.g. 3250
+  lastInspectionDate: string; // e.g. "2026-09-05"
+  inspectionStatus: "compliant" | "due_soon" | "overdue";
+  notes?: string;
+}
+
+export interface WarehousePersonnel {
+  id: string; // e.g. "TECH-01"
+  name: string; // e.g. "Marco S."
+  role: string; // e.g. "Lead Dock Tech & Rework Specialist"
+  status: "active" | "available" | "on_break";
+  currentJobId?: string; // e.g. "DX-260918-037"
+  currentArea: string; // e.g. "RW-01"
+  hoursLoggedToday: number; // e.g. 5.0
+  assignedAssetId?: string; // e.g. "FL-01"
+  certifications: string[]; // e.g. ["OSHA Class I & IV Forklift", "Food-Grade HACCP Protocol"]
+}
+

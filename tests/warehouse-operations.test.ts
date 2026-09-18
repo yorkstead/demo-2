@@ -193,4 +193,34 @@ describe("Warehouse Operations Store & Flagship Scenario", () => {
     expect(job?.billableAmount).toBe(450.0);
     expect(job?.projectedAmount).toBe(450.0);
   });
+
+  it("manages capital asset registry and maintains reconciliation with jobs and personnel", () => {
+    const assets = WarehouseStore.getAssets();
+    expect(assets.length).toBeGreaterThanOrEqual(6);
+
+    // FL-01 is assigned to flagship job DX-260918-037 and Marco S.
+    const fl01 = assets.find((a) => a.id === "FL-01");
+    expect(fl01).toBeDefined();
+    expect(fl01?.status).toBe("in_use");
+    expect(fl01?.currentJobId).toBe("DX-260918-037");
+    expect(fl01?.assignedOperator).toBe("Marco S.");
+    expect(fl01?.inspectionStatus).toBe("due_soon");
+
+    // Personnel reconciliation
+    const personnel = WarehouseStore.getPersonnel();
+    expect(personnel.length).toBeGreaterThanOrEqual(4);
+    const marco = personnel.find((p) => p.name === "Marco S.");
+    expect(marco).toBeDefined();
+    expect(marco?.assignedAssetId).toBe("FL-01");
+    expect(marco?.currentJobId).toBe("DX-260918-037");
+
+    // Update asset status
+    const updatedFl01 = WarehouseStore.updateAsset("FL-01", {
+      meterHours: 3250,
+      inspectionStatus: "compliant",
+      lastInspectionDate: "2026-09-18",
+    });
+    expect(updatedFl01?.meterHours).toBe(3250);
+    expect(updatedFl01?.inspectionStatus).toBe("compliant");
+  });
 });

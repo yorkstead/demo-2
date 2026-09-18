@@ -9,6 +9,8 @@ import {
   OperationalException,
   CustomerAccount,
   RateCardItem,
+  CapitalAsset,
+  WarehousePersonnel,
   JobStatus,
   ApprovalStatus,
   PalletMovement,
@@ -21,6 +23,8 @@ import {
   INITIAL_EXCEPTIONS,
   INITIAL_CUSTOMERS,
   INITIAL_RATE_CARD,
+  INITIAL_CAPITAL_ASSETS,
+  INITIAL_PERSONNEL,
 } from "./mock-warehouse-data";
 
 const STORAGE_KEYS = {
@@ -31,6 +35,8 @@ const STORAGE_KEYS = {
   EXCEPTIONS: "dx_ops_exceptions_v2",
   CUSTOMERS: "dx_ops_customers_v2",
   RATE_CARD: "dx_ops_rate_card_v2",
+  ASSETS: "dx_ops_assets_v2",
+  PERSONNEL: "dx_ops_personnel_v2",
 };
 
 export class WarehouseStore {
@@ -565,15 +571,38 @@ export class WarehouseStore {
     return this.getStored(STORAGE_KEYS.RATE_CARD, INITIAL_RATE_CARD);
   }
 
+  static getAssets(): CapitalAsset[] {
+    return this.getStored(STORAGE_KEYS.ASSETS, INITIAL_CAPITAL_ASSETS);
+  }
+
+  static updateAsset(id: string, updates: Partial<CapitalAsset>): CapitalAsset | null {
+    const assets = this.getAssets();
+    const idx = assets.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+    assets[idx] = { ...assets[idx], ...updates };
+    this.setStored(STORAGE_KEYS.ASSETS, assets);
+    return assets[idx];
+  }
+
+  static getPersonnel(): WarehousePersonnel[] {
+    return this.getStored(STORAGE_KEYS.PERSONNEL, INITIAL_PERSONNEL);
+  }
+
+  static updatePersonnel(id: string, updates: Partial<WarehousePersonnel>): WarehousePersonnel | null {
+    const personnel = this.getPersonnel();
+    const idx = personnel.findIndex((p) => p.id === id);
+    if (idx === -1) return null;
+    personnel[idx] = { ...personnel[idx], ...updates };
+    this.setStored(STORAGE_KEYS.PERSONNEL, personnel);
+    return personnel[idx];
+  }
+
   static resetToSeed(): void {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(STORAGE_KEYS.JOBS);
-    localStorage.removeItem(STORAGE_KEYS.PALLETS);
-    localStorage.removeItem(STORAGE_KEYS.LOCATIONS);
-    localStorage.removeItem(STORAGE_KEYS.TRAILERS);
-    localStorage.removeItem(STORAGE_KEYS.EXCEPTIONS);
-    localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
-    localStorage.removeItem(STORAGE_KEYS.RATE_CARD);
+    if (typeof window === "undefined") {
+      this.memoryStore = {};
+      return;
+    }
+    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
     window.dispatchEvent(new CustomEvent("dx_store_update", { detail: { key: "all" } }));
   }
 }
@@ -596,6 +625,8 @@ export function useWarehouseStore() {
     exceptions: WarehouseStore.getExceptions(),
     customers: WarehouseStore.getCustomers(),
     rateCard: WarehouseStore.getRateCard(),
+    assets: WarehouseStore.getAssets(),
+    personnel: WarehouseStore.getPersonnel(),
     getJobById: useCallback(WarehouseStore.getJobById.bind(WarehouseStore), []),
     getPalletById: useCallback(WarehouseStore.getPalletById.bind(WarehouseStore), []),
     updateJobStatus: useCallback(WarehouseStore.updateJobStatus.bind(WarehouseStore), []),
@@ -610,6 +641,8 @@ export function useWarehouseStore() {
     completeCorrectiveWork: useCallback(WarehouseStore.completeCorrectiveWork.bind(WarehouseStore), []),
     reviewAndApproveBilling: useCallback(WarehouseStore.reviewAndApproveBilling.bind(WarehouseStore), []),
     markJobInvoiced: useCallback(WarehouseStore.markJobInvoiced.bind(WarehouseStore), []),
+    updateAsset: useCallback(WarehouseStore.updateAsset.bind(WarehouseStore), []),
+    updatePersonnel: useCallback(WarehouseStore.updatePersonnel.bind(WarehouseStore), []),
     resetToSeed: useCallback(WarehouseStore.resetToSeed.bind(WarehouseStore), []),
   };
 }
